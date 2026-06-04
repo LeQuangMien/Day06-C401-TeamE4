@@ -1,300 +1,301 @@
-{
-  "user": {
-    "name": "Miền",
-    "currency": "VND"
-  },
-  "wallet": {
-    "opening_balance": 2082000,
-    "current_balance": 2500000,
-    "last_updated": "2026-06-04",
-    "note": "current_balance = opening_balance + total_income - total_expense"
-  },
-  "transactions": [
-    {
-      "id": "T001",
-      "date": "2026-06-01",
-      "type": "expense",
-      "amount": 45000,
-      "category": "food",
-      "merchant": "Circle K",
-      "description": "Ăn sáng"
+import json
+from pathlib import Path
+
+moni_data_fixed = {
+    "user": {
+        "name": "Miền",
+        "currency": "VND"
     },
-    {
-      "id": "T002",
-      "date": "2026-06-01",
-      "type": "expense",
-      "amount": 32000,
-      "category": "food",
-      "merchant": "Highlands Coffee",
-      "description": "Cà phê"
+    "wallet": {
+        "opening_balance": 2082000,
+        "current_balance": 2500000,
+        "last_updated": "2026-06-04",
+        "note": "current_balance = opening_balance + total_income - total_expense"
     },
-    {
-      "id": "T003",
-      "date": "2026-06-02",
-      "type": "expense",
-      "amount": 120000,
-      "category": "transport",
-      "merchant": "Xanh SM",
-      "description": "Đi học"
-    },
-    {
-      "id": "T004",
-      "date": "2026-06-03",
-      "type": "income",
-      "amount": 1000000,
-      "category": "allowance",
-      "merchant": "Family",
-      "description": "Tiền sinh hoạt"
-    },
-    {
-      "id": "T005",
-      "date": "2026-06-03",
-      "type": "expense",
-      "amount": 250000,
-      "category": "shopping",
-      "merchant": "Shopee",
-      "description": "Mua đồ dùng học tập"
-    },
-    {
-      "id": "T006",
-      "date": "2026-06-04",
-      "type": "expense",
-      "amount": 75000,
-      "category": "entertainment",
-      "merchant": "CGV",
-      "description": "Xem phim"
-    },
-    {
-      "id": "T007",
-      "date": "2026-06-04",
-      "type": "expense",
-      "amount": 60000,
-      "category": "food",
-      "merchant": "Cơm văn phòng",
-      "description": "Ăn trưa"
-    }
-  ],
-  "moni_notes": [
-    {
-      "id": "N001",
-      "date": "2026-06-04",
-      "type": "insight",
-      "title": "Chi tiêu mua sắm đang chiếm nhiều nhất",
-      "message": "Từ ngày 01/06 đến 04/06, bạn đã chi 250.000đ cho mua sắm, cao nhất trong các nhóm chi tiêu.",
-      "related_categories": [
-        "shopping"
-      ]
-    },
-    {
-      "id": "N002",
-      "date": "2026-06-04",
-      "type": "insight",
-      "title": "Ăn uống là nhóm chi xuất hiện thường xuyên",
-      "message": "Bạn có 3 giao dịch ăn uống với tổng 137.000đ trong giai đoạn này.",
-      "related_categories": [
-        "food"
-      ]
-    },
-    {
-      "id": "N003",
-      "date": "2026-06-04",
-      "type": "saving_tip",
-      "title": "Gợi ý tiết kiệm nhỏ",
-      "message": "Nếu giảm 1 ly cà phê/tuần khoảng 32.000đ, bạn có thể tiết kiệm thêm khoảng 128.000đ/tháng.",
-      "related_categories": [
-        "food"
-      ]
-    }
-  ],
-  "saving_goals": [
-    {
-      "id": "SG001",
-      "name": "Tiết kiệm 5 triệu trong 3 tháng",
-      "status": "active",
-      "target_amount": 5000000,
-      "saved_amount": 0,
-      "saved_amount_source": "manual_tracking",
-      "currency": "VND",
-      "duration_months": 3,
-      "start_date": "2026-06-01",
-      "target_date": "2026-08-31",
-      "monthly_required_amount": 1666667,
-      "monthly_plan": [
+    "transactions": [
         {
-          "month": "06/2026",
-          "required_amount": 1666667
+            "id": "T001",
+            "date": "2026-06-01",
+            "type": "expense",
+            "amount": 45000,
+            "category": "food",
+            "merchant": "Circle K",
+            "description": "Ăn sáng"
         },
         {
-          "month": "07/2026",
-          "required_amount": 1666667
+            "id": "T002",
+            "date": "2026-06-01",
+            "type": "expense",
+            "amount": 32000,
+            "category": "food",
+            "merchant": "Highlands Coffee",
+            "description": "Cà phê"
         },
         {
-          "month": "08/2026",
-          "required_amount": 1666666
+            "id": "T003",
+            "date": "2026-06-02",
+            "type": "expense",
+            "amount": 120000,
+            "category": "transport",
+            "merchant": "Xanh SM",
+            "description": "Đi học"
+        },
+        {
+            "id": "T004",
+            "date": "2026-06-03",
+            "type": "income",
+            "amount": 1000000,
+            "category": "allowance",
+            "merchant": "Family",
+            "description": "Tiền sinh hoạt"
+        },
+        {
+            "id": "T005",
+            "date": "2026-06-03",
+            "type": "expense",
+            "amount": 250000,
+            "category": "shopping",
+            "merchant": "Shopee",
+            "description": "Mua đồ dùng học tập"
+        },
+        {
+            "id": "T006",
+            "date": "2026-06-04",
+            "type": "expense",
+            "amount": 75000,
+            "category": "entertainment",
+            "merchant": "CGV",
+            "description": "Xem phim"
+        },
+        {
+            "id": "T007",
+            "date": "2026-06-04",
+            "type": "expense",
+            "amount": 60000,
+            "category": "food",
+            "merchant": "Cơm văn phòng",
+            "description": "Ăn trưa"
         }
-      ],
-      "reminder": {
-        "enabled": true,
-        "day_of_month": 5,
-        "next_reminder_date": "2026-06-05",
-        "message": "Đến ngày ghi nhận khoản tiết kiệm tháng này rồi nè."
-      },
-      "flow": [
-        "Yêu cầu tiết kiệm",
-        "Moni gợi ý",
-        "Xác nhận",
-        "Tạo thành công",
-        "Xem kế hoạch",
-        "Ghi nhận khoản tiết kiệm"
-      ],
-      "screens": [
+    ],
+    "moni_notes": [
         {
-          "id": "S01",
-          "name": "Yêu cầu tiết kiệm",
-          "type": "chat",
-          "user_message": "Tôi muốn tiết kiệm 5 triệu trong 3 tháng, bạn giúp mình lập kế hoạch nhé?",
-          "next": "S02"
+            "id": "N001",
+            "date": "2026-06-04",
+            "type": "insight",
+            "title": "Chi tiêu mua sắm đang chiếm nhiều nhất",
+            "message": "Từ ngày 01/06 đến 04/06, bạn đã chi 250.000đ cho mua sắm, cao nhất trong các nhóm chi tiêu.",
+            "related_categories": ["shopping"]
         },
         {
-          "id": "S02",
-          "name": "Moni gợi ý",
-          "type": "plan_suggestion",
-          "moni_message": "Moni gợi ý bạn tiết kiệm khoảng 1.666.667đ mỗi tháng trong 3 tháng.",
-          "plan_card": {
-            "title": "Kế hoạch tiết kiệm đề xuất",
-            "target_amount": 5000000,
-            "duration_months": 3,
-            "monthly_required_amount": 1666667,
-            "monthly_plan": [
-              {
-                "month": "06/2026",
-                "required_amount": 1666667
-              },
-              {
-                "month": "07/2026",
-                "required_amount": 1666667
-              },
-              {
-                "month": "08/2026",
-                "required_amount": 1666666
-              }
-            ],
-            "note": "Tháng cuối giảm 1đ để tổng đúng 5.000.000đ."
-          },
-          "cta": "Tạo kế hoạch",
-          "next": "S03"
+            "id": "N002",
+            "date": "2026-06-04",
+            "type": "insight",
+            "title": "Ăn uống là nhóm chi xuất hiện thường xuyên",
+            "message": "Bạn có 3 giao dịch ăn uống với tổng 137.000đ trong giai đoạn này.",
+            "related_categories": ["food"]
         },
         {
-          "id": "S03",
-          "name": "Xác nhận",
-          "type": "confirmation",
-          "fields": {
-            "goal_name": "Tiết kiệm 5 triệu trong 3 tháng",
+            "id": "N003",
+            "date": "2026-06-04",
+            "type": "saving_tip",
+            "title": "Gợi ý tiết kiệm nhỏ",
+            "message": "Nếu giảm 1 ly cà phê/tuần khoảng 32.000đ, bạn có thể tiết kiệm thêm khoảng 128.000đ/tháng.",
+            "related_categories": ["food"]
+        }
+    ],
+    "saving_goals": [
+        {
+            "id": "SG001",
+            "name": "Tiết kiệm 5 triệu trong 3 tháng",
+            "status": "active",
             "target_amount": 5000000,
+            "saved_amount": 0,
+            "saved_amount_source": "manual_tracking",
+            "currency": "VND",
             "duration_months": 3,
             "start_date": "2026-06-01",
             "target_date": "2026-08-31",
-            "reminder_day": 5
-          },
-          "monthly_breakdown": [
-            {
-              "month": "06/2026",
-              "required_amount": 1666667
+            "monthly_required_amount": 1666667,
+            "monthly_plan": [
+                {
+                    "month": "06/2026",
+                    "required_amount": 1666667
+                },
+                {
+                    "month": "07/2026",
+                    "required_amount": 1666667
+                },
+                {
+                    "month": "08/2026",
+                    "required_amount": 1666666
+                }
+            ],
+            "reminder": {
+                "enabled": True,
+                "day_of_month": 5,
+                "next_reminder_date": "2026-06-05",
+                "message": "Đến ngày ghi nhận khoản tiết kiệm tháng này rồi nè."
             },
-            {
-              "month": "07/2026",
-              "required_amount": 1666667
-            },
-            {
-              "month": "08/2026",
-              "required_amount": 1666666
-            }
-          ],
-          "cta": "Xác nhận tạo kế hoạch",
-          "next": "S04"
-        },
-        {
-          "id": "S04",
-          "name": "Tạo thành công",
-          "type": "success",
-          "title": "Tạo kế hoạch thành công!",
-          "message": "Xem lại kế hoạch trước khi bắt đầu ghi nhận tiến độ nhé.",
-          "primary_cta": "Xem kế hoạch của tôi",
-          "secondary_cta": "Quay lại trò chuyện",
-          "next": "S05"
-        },
-        {
-          "id": "S05",
-          "name": "Xem kế hoạch",
-          "type": "dashboard",
-          "progress": {
-            "saved_amount": 0,
-            "target_amount": 5000000,
-            "percentage": 0
-          },
-          "next_reminder": {
-            "date": "2026-06-05",
-            "message": "Nhắc ghi nhận khoản tiết kiệm tháng này."
-          },
-          "monthly_tracking": [
-            {
-              "month": "06/2026",
-              "required_amount": 1666667,
-              "saved_amount": 0,
-              "status": "Chưa ghi nhận"
-            },
-            {
-              "month": "07/2026",
-              "required_amount": 1666667,
-              "saved_amount": 0,
-              "status": "Chưa đến hạn"
-            },
-            {
-              "month": "08/2026",
-              "required_amount": 1666666,
-              "saved_amount": 0,
-              "status": "Chưa đến hạn"
-            }
-          ],
-          "primary_cta": "Ghi nhận khoản tiết kiệm",
-          "next": "S06"
-        },
-        {
-          "id": "S06",
-          "name": "Ghi nhận khoản tiết kiệm",
-          "type": "saving_entry",
-          "fields": [
-            {
-              "name": "amount",
-              "label": "Số tiền đã tiết kiệm",
-              "required": true
-            },
-            {
-              "name": "note",
-              "label": "Ghi chú",
-              "required": false
-            },
-            {
-              "name": "date",
-              "label": "Ngày ghi nhận",
-              "required": true
-            }
-          ],
-          "cta": "Lưu khoản tiết kiệm"
+            "flow": [
+                "Yêu cầu tiết kiệm",
+                "Moni gợi ý",
+                "Xác nhận",
+                "Tạo thành công",
+                "Xem kế hoạch",
+                "Ghi nhận khoản tiết kiệm"
+            ],
+            "screens": [
+                {
+                    "id": "S01",
+                    "name": "Yêu cầu tiết kiệm",
+                    "type": "chat",
+                    "user_message": "Tôi muốn tiết kiệm 5 triệu trong 3 tháng, bạn giúp mình lập kế hoạch nhé?",
+                    "next": "S02"
+                },
+                {
+                    "id": "S02",
+                    "name": "Moni gợi ý",
+                    "type": "plan_suggestion",
+                    "moni_message": "Moni gợi ý bạn tiết kiệm khoảng 1.666.667đ mỗi tháng trong 3 tháng.",
+                    "plan_card": {
+                        "title": "Kế hoạch tiết kiệm đề xuất",
+                        "target_amount": 5000000,
+                        "duration_months": 3,
+                        "monthly_required_amount": 1666667,
+                        "monthly_plan": [
+                            {
+                                "month": "06/2026",
+                                "required_amount": 1666667
+                            },
+                            {
+                                "month": "07/2026",
+                                "required_amount": 1666667
+                            },
+                            {
+                                "month": "08/2026",
+                                "required_amount": 1666666
+                            }
+                        ],
+                        "note": "Tháng cuối giảm 1đ để tổng đúng 5.000.000đ."
+                    },
+                    "cta": "Tạo kế hoạch",
+                    "next": "S03"
+                },
+                {
+                    "id": "S03",
+                    "name": "Xác nhận",
+                    "type": "confirmation",
+                    "fields": {
+                        "goal_name": "Tiết kiệm 5 triệu trong 3 tháng",
+                        "target_amount": 5000000,
+                        "duration_months": 3,
+                        "start_date": "2026-06-01",
+                        "target_date": "2026-08-31",
+                        "reminder_day": 5
+                    },
+                    "monthly_breakdown": [
+                        {
+                            "month": "06/2026",
+                            "required_amount": 1666667
+                        },
+                        {
+                            "month": "07/2026",
+                            "required_amount": 1666667
+                        },
+                        {
+                            "month": "08/2026",
+                            "required_amount": 1666666
+                        }
+                    ],
+                    "cta": "Xác nhận tạo kế hoạch",
+                    "next": "S04"
+                },
+                {
+                    "id": "S04",
+                    "name": "Tạo thành công",
+                    "type": "success",
+                    "title": "Tạo kế hoạch thành công!",
+                    "message": "Xem lại kế hoạch trước khi bắt đầu ghi nhận tiến độ nhé.",
+                    "primary_cta": "Xem kế hoạch của tôi",
+                    "secondary_cta": "Quay lại trò chuyện",
+                    "next": "S05"
+                },
+                {
+                    "id": "S05",
+                    "name": "Xem kế hoạch",
+                    "type": "dashboard",
+                    "progress": {
+                        "saved_amount": 0,
+                        "target_amount": 5000000,
+                        "percentage": 0
+                    },
+                    "next_reminder": {
+                        "date": "2026-06-05",
+                        "message": "Nhắc ghi nhận khoản tiết kiệm tháng này."
+                    },
+                    "monthly_tracking": [
+                        {
+                            "month": "06/2026",
+                            "required_amount": 1666667,
+                            "saved_amount": 0,
+                            "status": "Chưa ghi nhận"
+                        },
+                        {
+                            "month": "07/2026",
+                            "required_amount": 1666667,
+                            "saved_amount": 0,
+                            "status": "Chưa đến hạn"
+                        },
+                        {
+                            "month": "08/2026",
+                            "required_amount": 1666666,
+                            "saved_amount": 0,
+                            "status": "Chưa đến hạn"
+                        }
+                    ],
+                    "primary_cta": "Ghi nhận khoản tiết kiệm",
+                    "next": "S06"
+                },
+                {
+                    "id": "S06",
+                    "name": "Ghi nhận khoản tiết kiệm",
+                    "type": "saving_entry",
+                    "fields": [
+                        {
+                            "name": "amount",
+                            "label": "Số tiền đã tiết kiệm",
+                            "required": True
+                        },
+                        {
+                            "name": "note",
+                            "label": "Ghi chú",
+                            "required": False
+                        },
+                        {
+                            "name": "date",
+                            "label": "Ngày ghi nhận",
+                            "required": True
+                        }
+                    ],
+                    "cta": "Lưu khoản tiết kiệm"
+                }
+            ]
         }
-      ]
+    ],
+    "summary": {
+        "total_income": 1000000,
+        "total_expense": 582000,
+        "net_change": 418000,
+        "expense_by_category": {
+            "food": 137000,
+            "transport": 120000,
+            "shopping": 250000,
+            "entertainment": 75000
+        },
+        "top_expense_category": "shopping"
     }
-  ],
-  "summary": {
-    "total_income": 1000000,
-    "total_expense": 582000,
-    "net_change": 418000,
-    "expense_by_category": {
-      "food": 137000,
-      "transport": 120000,
-      "shopping": 250000,
-      "entertainment": 75000
-    },
-    "top_expense_category": "shopping"
-  }
 }
+
+out_path = Path("/codebase/src/finance_data.json")
+out_path.write_text(json.dumps(moni_data_fixed, ensure_ascii=False, indent=2), encoding="utf-8")
+out_path.as_posix()
