@@ -1,7 +1,8 @@
 // Chat Service - Abstraction layer for API calls
 // Switch USE_MOCK to false when backend is ready
 
-const USE_MOCK = true;
+const USE_MOCK = false;
+const API_BASE_URL = '';
 
 // ==================== MOCK DATA ====================
 const MOCK_RESPONSES = [
@@ -62,15 +63,13 @@ async function mockSendMessage(message) {
 }
 
 // ==================== REAL API IMPLEMENTATION ====================
-// TODO: Uncomment and configure when backend is ready
-/*
 async function realSendMessage(message, conversationHistory) {
-  const response = await fetch('/api/chat', {
+  const response = await fetch(`${API_BASE_URL}/agent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message,
-      history: conversationHistory,
+      prompt: message,
+      max_steps: 10,
     }),
   });
 
@@ -79,9 +78,10 @@ async function realSendMessage(message, conversationHistory) {
   }
 
   const data = await response.json();
-  return { text: data.reply };
+  // Ensure answer is a string
+  const answer = typeof data.answer === 'string' ? data.answer : JSON.stringify(data.answer);
+  return { text: answer };
 }
-*/
 
 // ==================== PUBLIC API ====================
 
@@ -96,9 +96,7 @@ export async function sendMessage(message, conversationHistory = []) {
     return mockSendMessage(message);
   }
 
-  // When backend is ready, switch to:
-  // return realSendMessage(message, conversationHistory);
-  throw new Error('Real API not configured yet. Set USE_MOCK = true.');
+  return realSendMessage(message, conversationHistory);
 }
 
 /**

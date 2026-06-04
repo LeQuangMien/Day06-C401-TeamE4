@@ -4,7 +4,7 @@ function MessageBubble({ message, isStreaming = false, displayedText = '' }) {
   const isUser = message.type === 'user';
 
   // Determine which text to render for bot messages
-  const botText = isStreaming ? displayedText : message.text;
+  const botText = String(isStreaming ? displayedText : message.text || '');
 
   // Parse bot text to render bold and lists
   const renderBotText = (text) => {

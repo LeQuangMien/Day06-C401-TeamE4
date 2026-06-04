@@ -12,9 +12,6 @@ const STORAGE_KEY = 'moni-conversations';
 // Streaming speed (ms per character)
 const STREAM_SPEED = 20;
 
-// Typing indicator delay before streaming starts (ms)
-const TYPING_DELAY = 800;
-
 function ChatPage() {
   // All conversations: array of { id, messages, createdAt }
   const [conversations, setConversations] = useState(() => {
@@ -66,6 +63,7 @@ function ChatPage() {
 
   // Start streaming effect for a bot message
   const startStreaming = useCallback((msgId, fullText) => {
+    const text = String(fullText || '');
     setStreamingMsgId(msgId);
     setStreamingText('');
 
@@ -73,11 +71,10 @@ function ChatPage() {
 
     streamingRef.current = setInterval(() => {
       charIndex++;
-      const partial = fullText.slice(0, charIndex);
+      const partial = text.slice(0, charIndex);
       setStreamingText(partial);
 
-      if (charIndex >= fullText.length) {
-        // Streaming complete
+      if (charIndex >= text.length) {
         clearInterval(streamingRef.current);
         streamingRef.current = null;
         setStreamingMsgId(null);
@@ -95,29 +92,30 @@ function ChatPage() {
       timestamp: now,
     };
 
-    // Determine which conversation to add to
+    // Compute target conversation ID BEFORE state update
+    const existingConv = conversations.find((c) => c.id === activeConvId);
     let targetConvId = activeConvId;
 
-    setConversations((prev) => {
-      // If no active conversation, create one
-      if (!prev.find((c) => c.id === activeConvId)) {
-        const newConv = {
-          id: `conv-${Date.now()}`,
-          messages: [userMsg],
-          createdAt: now,
-        };
-        targetConvId = newConv.id;
-        setActiveConvId(newConv.id);
-        return [...prev, newConv];
-      }
-
-      // Add message to active conversation
-      return prev.map((c) =>
-        c.id === activeConvId
-          ? { ...c, messages: [...c.messages, userMsg] }
-          : c
+    if (!existingConv) {
+      // Create new conversation ID upfront
+      targetConvId = `conv-${Date.now()}`;
+      const newConv = {
+        id: targetConvId,
+        messages: [userMsg],
+        createdAt: now,
+      };
+      setActiveConvId(targetConvId);
+      setConversations((prev) => [...prev, newConv]);
+    } else {
+      // Add message to existing conversation
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConvId
+            ? { ...c, messages: [...c.messages, userMsg] }
+            : c
+        )
       );
-    });
+    }
 
     // Show typing indicator
     setIsBotTyping(true);
@@ -125,10 +123,8 @@ function ChatPage() {
     // Call chat service
     sendMessage(text)
       .then((response) => {
-        // Hide typing indicator
         setIsBotTyping(false);
 
-        // Create bot message
         const botMsg = {
           id: `msg-${Date.now()}-bot`,
           type: 'bot',
@@ -136,7 +132,6 @@ function ChatPage() {
           timestamp: new Date(),
         };
 
-        // Add bot message to conversation
         setConversations((prev) =>
           prev.map((c) =>
             c.id === targetConvId
@@ -154,7 +149,6 @@ function ChatPage() {
         console.error('Chat service error:', error);
         setIsBotTyping(false);
 
-        // Add error message
         const errorMsg = {
           id: `msg-${Date.now()}-err`,
           type: 'bot',
@@ -170,7 +164,7 @@ function ChatPage() {
           )
         );
       });
-  }, [activeConvId, startStreaming]);
+  }, [activeConvId, conversations, startStreaming]);
 
   const handleOpenHistory = useCallback(() => {
     setIsHistoryOpen(true);

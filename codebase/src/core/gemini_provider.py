@@ -2,7 +2,7 @@ import os
 import time
 import google.generativeai as genai
 from typing import Dict, Any, Optional, Generator
-from codebase.src.core.llm_provider import LLMProvider
+from src.core.llm_provider import LLMProvider
 
 class GeminiProvider(LLMProvider):
     def __init__(self, model_name: str = "gemini-1.5-flash", api_key: Optional[str] = None):

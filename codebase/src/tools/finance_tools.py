@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import Any, Dict, List, Optional
 
 
-DEFAULT_DATA_PATH = "codebase\\src\\data\\finance_data.json"
+DEFAULT_DATA_PATH = str(Path(__file__).parent.parent / "data" / "finance_data.json")
 
 
 # -----------------------------
