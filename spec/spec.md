@@ -122,6 +122,6 @@ Nhóm xác định hai kiểu lỗi nguy hiểm nhất cần phải phòng chố
 |---|---|
 | Trần Đức Tâm | Evidence |
 | Lê Quốc Bảo | SPEC |
-| Kim Hồng Giang | Backend |
-| Lê Quang Miền | Frontend |
+| Kim Hồng Giang | Frontend |
+| Lê Quang Miền | Backend|
 | TranNgocThuy | Data |
