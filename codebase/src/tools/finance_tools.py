@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import Any, Dict, List, Optional
 
 
-DEFAULT_DATA_PATH = "codebase\\src\\data\\finance_data.json"
+DEFAULT_DATA_PATH = str(Path(__file__).parent.parent / "data" / "finance_data.json")
 
 
 # -----------------------------
@@ -159,6 +159,34 @@ def _sum_amount(transactions: List[Dict[str, Any]], tx_type: Optional[str] = Non
             continue
 
     return total
+
+def _calculate_goal_progress(goal: Dict[str, Any]) -> Dict[str, Any]:
+    goal_amount = float(goal.get("goal_amount", 0) or 0)
+    deposits = goal.get("deposits", [])
+
+    saved_amount = 0.0
+    for deposit in deposits:
+        try:
+            saved_amount += float(deposit.get("amount", 0))
+        except (TypeError, ValueError):
+            continue
+
+    progress_percent = 0
+    if goal_amount > 0:
+        progress_percent = min(100, round(saved_amount / goal_amount * 100, 2))
+
+    goal["saved_amount"] = int(saved_amount)
+    goal["saved_amount_text"] = _format_vnd(saved_amount)
+    goal["progress_percent"] = progress_percent
+    goal["remaining_amount"] = max(0, int(goal_amount - saved_amount))
+    goal["remaining_amount_text"] = _format_vnd(max(0, goal_amount - saved_amount))
+
+    if progress_percent >= 100:
+        goal["status"] = "completed"
+    elif goal.get("status") == "completed":
+        goal["status"] = "active"
+
+    return goal
 
 
 # -----------------------------
@@ -442,6 +470,11 @@ def create_saving_plan(
         "daily_required": int(round(daily_required)),
         "daily_required_text": _format_vnd(daily_required),
         "start_date": start_date,
+        "reminder_day": 5,
+        "saved_amount": 0,
+        "saved_amount_text": _format_vnd(0),
+        "progress_percent": 0,
+        "deposits": [],
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "status": "draft",
     }
@@ -461,11 +494,16 @@ def create_saving_plan(
 
     return {
         "success": True,
+        "ui_action": "SHOW_SAVING_PLAN_DRAFT",
+        "data": {
+            "plan": plan
+        },
         "plan": plan,
         "saved": bool(save_to_json),
         "message": (
-            f"To reach {plan['goal_amount_text']} in {months} month(s), "
-            f"the user needs to save about {plan['monthly_required_text']} per month."
+            f"Draft saving plan created. To reach {plan['goal_amount_text']} "
+            f"in {months} month(s), the user needs to save about "
+            f"{plan['monthly_required_text']} per month."
         ),
     }
 
@@ -551,6 +589,446 @@ def create_moni_note(
     }
 
 
+def save_saving_plan(
+    goal_name: str,
+    goal_amount: int | float,
+    months: int,
+    monthly_required: Optional[int | float] = None,
+    start_date: Optional[str] = None,
+    reminder_day: int = 5,
+    data_path: str = DEFAULT_DATA_PATH,
+) -> Dict[str, Any]:
+    """
+    Save a confirmed saving plan into finance_data.json.
+    This should be called only after the user confirms the draft plan from UI.
+    """
+
+    if not goal_name or not str(goal_name).strip():
+        return {
+            "success": False,
+            "error": "INVALID_GOAL_NAME",
+            "message": "goal_name is required.",
+        }
+
+    try:
+        goal_amount = float(goal_amount)
+        months = int(months)
+        reminder_day = int(reminder_day)
+    except (TypeError, ValueError):
+        return {
+            "success": False,
+            "error": "INVALID_ARGUMENT",
+            "message": "goal_amount, months, and reminder_day must be valid numbers.",
+        }
+
+    if goal_amount <= 0:
+        return {
+            "success": False,
+            "error": "INVALID_GOAL_AMOUNT",
+            "message": "goal_amount must be greater than 0.",
+        }
+
+    if months <= 0:
+        return {
+            "success": False,
+            "error": "INVALID_MONTHS",
+            "message": "months must be greater than 0.",
+        }
+
+    if not 1 <= reminder_day <= 31:
+        return {
+            "success": False,
+            "error": "INVALID_REMINDER_DAY",
+            "message": "reminder_day must be between 1 and 31.",
+        }
+
+    if start_date:
+        try:
+            _parse_date(start_date)
+        except ValueError as exc:
+            return {
+                "success": False,
+                "error": "INVALID_DATE",
+                "message": str(exc),
+            }
+
+    if monthly_required is None:
+        monthly_required = goal_amount / months
+
+    try:
+        monthly_required = float(monthly_required)
+    except (TypeError, ValueError):
+        return {
+            "success": False,
+            "error": "INVALID_MONTHLY_REQUIRED",
+            "message": "monthly_required must be a number.",
+        }
+
+    loaded = _load_data(data_path)
+    if not loaded["success"]:
+        return loaded
+
+    data = loaded["data"]
+    data.setdefault("saving_goals", [])
+
+    goal = {
+        "id": f"G{int(datetime.now().timestamp())}",
+        "goal_name": str(goal_name).strip(),
+        "goal_amount": int(goal_amount),
+        "goal_amount_text": _format_vnd(goal_amount),
+        "months": months,
+        "monthly_required": int(round(monthly_required)),
+        "monthly_required_text": _format_vnd(monthly_required),
+        "start_date": start_date,
+        "reminder_day": reminder_day,
+        "saved_amount": 0,
+        "saved_amount_text": _format_vnd(0),
+        "remaining_amount": int(goal_amount),
+        "remaining_amount_text": _format_vnd(goal_amount),
+        "progress_percent": 0,
+        "deposits": [],
+        "status": "active",
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+
+    data["saving_goals"].append(goal)
+
+    saved = _save_data(data, data_path)
+    if not saved["success"]:
+        return saved
+
+    return {
+        "success": True,
+        "ui_action": "SHOW_SAVING_PLAN_SUCCESS",
+        "data": {
+            "plan": goal
+        },
+        "plan": goal,
+        "message": "Saving plan saved successfully.",
+    }
+
+def list_saving_goals(
+    status: Optional[str] = None,
+    data_path: str = DEFAULT_DATA_PATH,
+) -> Dict[str, Any]:
+    """
+    List all saving goals from finance_data.json.
+    """
+
+    loaded = _load_data(data_path)
+    if not loaded["success"]:
+        return loaded
+
+    goals = loaded["data"].get("saving_goals", [])
+    if not isinstance(goals, list):
+        goals = []
+
+    normalized_goals = []
+    for goal in goals:
+        if not isinstance(goal, dict):
+            continue
+
+        goal = _calculate_goal_progress(goal)
+
+        if status and goal.get("status") != status:
+            continue
+
+        normalized_goals.append(goal)
+
+    return {
+        "success": True,
+        "ui_action": "SHOW_SAVING_PLAN_LIST",
+        "data": {
+            "goals": normalized_goals
+        },
+        "goals": normalized_goals,
+        "count": len(normalized_goals),
+        "message": f"Found {len(normalized_goals)} saving goal(s).",
+    }
+
+def get_saving_goal_detail(
+    goal_id: str,
+    data_path: str = DEFAULT_DATA_PATH,
+) -> Dict[str, Any]:
+    """
+    Get detail of a saving goal by goal_id.
+    """
+
+    if not goal_id:
+        return {
+            "success": False,
+            "error": "INVALID_GOAL_ID",
+            "message": "goal_id is required.",
+        }
+
+    loaded = _load_data(data_path)
+    if not loaded["success"]:
+        return loaded
+
+    goals = loaded["data"].get("saving_goals", [])
+
+    for goal in goals:
+        if isinstance(goal, dict) and goal.get("id") == goal_id:
+            goal = _calculate_goal_progress(goal)
+
+            return {
+                "success": True,
+                "ui_action": "SHOW_SAVING_PLAN_DETAIL",
+                "data": {
+                    "plan": goal
+                },
+                "plan": goal,
+                "message": "Saving goal detail loaded successfully.",
+            }
+
+    return {
+        "success": False,
+        "error": "GOAL_NOT_FOUND",
+        "message": f"Saving goal not found: {goal_id}",
+    }
+
+def record_saving_deposit(
+    goal_id: str,
+    amount: int | float,
+    date: Optional[str] = None,
+    note: Optional[str] = None,
+    data_path: str = DEFAULT_DATA_PATH,
+) -> Dict[str, Any]:
+    """
+    Record a saving deposit for a specific saving goal.
+    This only updates mock JSON. It does not move real money.
+    """
+
+    if not goal_id:
+        return {
+            "success": False,
+            "error": "INVALID_GOAL_ID",
+            "message": "goal_id is required.",
+        }
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return {
+            "success": False,
+            "error": "INVALID_AMOUNT",
+            "message": "amount must be a number.",
+        }
+
+    if amount <= 0:
+        return {
+            "success": False,
+            "error": "INVALID_AMOUNT",
+            "message": "amount must be greater than 0.",
+        }
+
+    if date:
+        try:
+            _parse_date(date)
+        except ValueError as exc:
+            return {
+                "success": False,
+                "error": "INVALID_DATE",
+                "message": str(exc),
+            }
+    else:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    loaded = _load_data(data_path)
+    if not loaded["success"]:
+        return loaded
+
+    data = loaded["data"]
+    goals = data.get("saving_goals", [])
+
+    for goal in goals:
+        if isinstance(goal, dict) and goal.get("id") == goal_id:
+            goal.setdefault("deposits", [])
+
+            deposit = {
+                "id": f"D{int(datetime.now().timestamp())}",
+                "amount": int(amount),
+                "amount_text": _format_vnd(amount),
+                "date": date,
+                "note": note,
+                "created_at": datetime.now().isoformat(timespec="seconds"),
+            }
+
+            goal["deposits"].append(deposit)
+            goal = _calculate_goal_progress(goal)
+
+            saved = _save_data(data, data_path)
+            if not saved["success"]:
+                return saved
+
+            return {
+                "success": True,
+                "ui_action": "SHOW_SAVING_DEPOSIT_SUCCESS",
+                "data": {
+                    "plan": goal,
+                    "deposit": deposit,
+                },
+                "plan": goal,
+                "deposit": deposit,
+                "message": "Saving deposit recorded successfully.",
+            }
+
+    return {
+        "success": False,
+        "error": "GOAL_NOT_FOUND",
+        "message": f"Saving goal not found: {goal_id}",
+    }
+
+def update_saving_plan(
+    goal_id: str,
+    goal_name: Optional[str] = None,
+    goal_amount: Optional[int | float] = None,
+    months: Optional[int] = None,
+    reminder_day: Optional[int] = None,
+    start_date: Optional[str] = None,
+    data_path: str = DEFAULT_DATA_PATH,
+) -> Dict[str, Any]:
+    """
+    Update a saving plan. Useful for correction path.
+    Example: user changes goal from 3 months to 5 months.
+    """
+
+    if not goal_id:
+        return {
+            "success": False,
+            "error": "INVALID_GOAL_ID",
+            "message": "goal_id is required.",
+        }
+
+    loaded = _load_data(data_path)
+    if not loaded["success"]:
+        return loaded
+
+    data = loaded["data"]
+    goals = data.get("saving_goals", [])
+
+    for goal in goals:
+        if isinstance(goal, dict) and goal.get("id") == goal_id:
+            if goal_name is not None:
+                if not str(goal_name).strip():
+                    return {
+                        "success": False,
+                        "error": "INVALID_GOAL_NAME",
+                        "message": "goal_name cannot be empty.",
+                    }
+                goal["goal_name"] = str(goal_name).strip()
+
+            if goal_amount is not None:
+                try:
+                    goal_amount = float(goal_amount)
+                except (TypeError, ValueError):
+                    return {
+                        "success": False,
+                        "error": "INVALID_GOAL_AMOUNT",
+                        "message": "goal_amount must be a number.",
+                    }
+
+                if goal_amount <= 0:
+                    return {
+                        "success": False,
+                        "error": "INVALID_GOAL_AMOUNT",
+                        "message": "goal_amount must be greater than 0.",
+                    }
+
+                goal["goal_amount"] = int(goal_amount)
+                goal["goal_amount_text"] = _format_vnd(goal_amount)
+
+            if months is not None:
+                try:
+                    months = int(months)
+                except (TypeError, ValueError):
+                    return {
+                        "success": False,
+                        "error": "INVALID_MONTHS",
+                        "message": "months must be an integer.",
+                    }
+
+                if months <= 0:
+                    return {
+                        "success": False,
+                        "error": "INVALID_MONTHS",
+                        "message": "months must be greater than 0.",
+                    }
+
+                goal["months"] = months
+
+            if reminder_day is not None:
+                try:
+                    reminder_day = int(reminder_day)
+                except (TypeError, ValueError):
+                    return {
+                        "success": False,
+                        "error": "INVALID_REMINDER_DAY",
+                        "message": "reminder_day must be an integer.",
+                    }
+
+                if not 1 <= reminder_day <= 31:
+                    return {
+                        "success": False,
+                        "error": "INVALID_REMINDER_DAY",
+                        "message": "reminder_day must be between 1 and 31.",
+                    }
+
+                goal["reminder_day"] = reminder_day
+
+            if start_date is not None:
+                try:
+                    _parse_date(start_date)
+                except ValueError as exc:
+                    return {
+                        "success": False,
+                        "error": "INVALID_DATE",
+                        "message": str(exc),
+                    }
+
+                goal["start_date"] = start_date
+
+            # Recalculate monthly required after update.
+            goal_amount_value = float(goal.get("goal_amount", 0) or 0)
+            months_value = int(goal.get("months", 1) or 1)
+            deposits = goal.get("deposits", [])
+            saved_amount = 0.0
+
+            for deposit in deposits:
+                try:
+                    saved_amount += float(deposit.get("amount", 0))
+                except (TypeError, ValueError):
+                    continue
+
+            remaining = max(0.0, goal_amount_value - saved_amount)
+            monthly_required = remaining / months_value
+
+            goal["monthly_required"] = int(round(monthly_required))
+            goal["monthly_required_text"] = _format_vnd(monthly_required)
+            goal["updated_at"] = datetime.now().isoformat(timespec="seconds")
+
+            goal = _calculate_goal_progress(goal)
+
+            saved = _save_data(data, data_path)
+            if not saved["success"]:
+                return saved
+
+            return {
+                "success": True,
+                "ui_action": "SHOW_SAVING_PLAN_DETAIL",
+                "data": {
+                    "plan": goal
+                },
+                "plan": goal,
+                "message": "Saving plan updated successfully.",
+            }
+
+    return {
+        "success": False,
+        "error": "GOAL_NOT_FOUND",
+        "message": f"Saving goal not found: {goal_id}",
+    }
+
 # -----------------------------
 # Ready-to-use tool registry
 # -----------------------------
@@ -595,5 +1073,38 @@ FINANCE_TOOLS = [
             "Create a temporary Moni Note fallback. It only writes a draft note to mock JSON."
         ),
         "func": create_moni_note,
+    },
+    {
+        "name": "save_saving_plan",
+        "description": (
+            "Save a confirmed saving plan to mock JSON. "
+            "Use only after the user confirms the draft plan."
+        ),
+        "func": save_saving_plan,
+    },
+    {
+        "name": "list_saving_goals",
+        "description": "List all saving goals from mock JSON.",
+        "func": list_saving_goals,
+    },
+    {
+        "name": "get_saving_goal_detail",
+        "description": "Get detail and progress of a saving goal by goal_id.",
+        "func": get_saving_goal_detail,
+    },
+    {
+        "name": "record_saving_deposit",
+        "description": (
+            "Record a saving deposit for a saving goal. "
+            "This only updates mock JSON and does not move real money."
+        ),
+        "func": record_saving_deposit,
+    },
+    {
+        "name": "update_saving_plan",
+        "description": (
+            "Update a saving plan, such as goal amount, months, reminder day, or start date."
+        ),
+        "func": update_saving_plan,
     },
 ]
