@@ -296,6 +296,6 @@ moni_data_fixed = {
     }
 }
 
-out_path = Path("/codebase/src/finance_data.json")
+out_path = Path("/codebase/src/data/finance_data.json")
 out_path.write_text(json.dumps(moni_data_fixed, ensure_ascii=False, indent=2), encoding="utf-8")
 out_path.as_posix()
