@@ -35,93 +35,152 @@ Những file sau cho thấy prototype hiện tại đã chốt hướng sản ph
 
 Từ các file trong repo, có thể kết luận 3 vấn đề cốt lõi mà prototype đang giải:
 
-| Vấn đề / Nhận định | Phân loại | Bằng chứng xác thực (Evidence) | Tác động đến thiết kế sản phẩm (Product Action) |
-| :--- | :--- | :--- | :--- |
-| **1. Lỗi khởi tạo ngân sách/mục tiêu**<br> | **Đã xác thực** | - Giao diện báo lỗi trực tiếp (`anh3.jpg`) khi bấm nút `muốn`.<br>- Đánh giá từ người dùng `lqmien5` và `juouuu`. | **Bắt buộc:** Tối ưu hiệu năng API. Thiết kế luồng dự phòng (Fallback): nếu hệ thống lỗi, AI vẫn ghi nhận mục tiêu vào bộ nhớ tạm (Local Draft) và tự động đồng bộ lại khi kết nối ổn định, tránh báo lỗi trực diện. |
-| **2. Tắc nghẽn luồng đồng bộ dữ liệu**<br> | **Đã xác thực** | - Câu trả lời của AI ở `anh2.jpg`.<br>- Khiếu nại từ người dùng `Phi817` (`feedback3.png`). | **Bắt buộc:** Tích hợp Data Pipeline giữa Core Wallet và Module AI. Thiết kế luồng xin quyền người dùng (Opt-in) tường minh ngay khi kích hoạt để AI tự quét và phân loại lịch sử giao dịch thực tế. |
-| **3. AI tính toán sai số liệu**<br>| **Đã xác thực** | - Đánh giá từ người dùng `quynhtr24` (`feedback4.png`). | **Bắt buộc:** Chuyển giao nhiệm vụ tính toán số học từ LLM thuần túy sang cho các hàm xử lý logic lập trình cố định (Deterministic Code/Rule-based Tools), AI chỉ đóng vai trò trích xuất thực thể (Entity Extraction). |
-| **4. Rào cản nhập liệu bằng tay**<br> | **Giả định** *(Cần đo lường thêm bằng chỉ số Retention)* | Luồng tính năng yêu cầu người dùng tự nhắn các khoản chi tiêu để ghi lại (`anh1.jpg`). | **Khuyến nghị:** Phát triển thêm tính năng hỗ trợ nhập liệu nhanh như Quét hóa đơn (OCR) hoặc Nhập dữ liệu bằng giọng nói (Voice-to-Text) để giảm ma sát cho các khoản chi tiêu ngoài ví MoMo. |
+| Vấn đề | Bằng chứng trong repo | Hướng xử lý sản phẩm |
+|---|---|---|
+| Người dùng muốn biết tình hình tài chính nhưng không muốn tự tổng hợp bằng tay | `finance_data.json` có giao dịch, summary, chi tiêu theo nhóm; `finance_tools.py` có tool tổng hợp | Dùng AI để biến câu chat thành truy vấn và tóm tắt ngắn gọn |
+| Người dùng muốn lập kế hoạch tiết kiệm nhưng dễ gãy ở bước tính toán và cấu trúc hóa mục tiêu | `create_saving_plan` và `saving_goals` trong `finance_data.json` | Dùng AI để đọc mục tiêu từ ngôn ngữ tự nhiên và trả về mức tiết kiệm theo tháng |
+| Khi dữ liệu/tool lỗi, luồng chat dễ bị gãy | `create_moni_note` và fallback trong `agent.py` | Không giả vờ trả lời, mà chuyển sang Moni Note để ghi nhận tạm thời |
 
----
+## 2. Lát cắt để build
 
-## 2. Lát cắt để build (The Minimum Viable Slice)
+Cho **một người trẻ đang muốn tiết kiệm 5.000.000đ trong 3 tháng**, prototype dùng AI để **hiểu mục tiêu viết bằng ngôn ngữ tự nhiên, gọi tool tính số tiền cần tiết kiệm mỗi tháng và trả về kế hoạch rõ ràng**, tạo ra **một câu trả lời chat có thể dùng ngay để ra quyết định**, và nếu dữ liệu hoặc tool gặp lỗi thì **chuyển sang Moni Note để ghi nhận tạm thay vì để luồng bị gãy**.
 
-Để chứng minh ý tưởng giải quyết triệt để các nỗi đau được nêu ở Phần 1 mà không sa đà vào việc xây dựng toàn bộ hệ thống cồng kềnh, nhóm lựa chọn lát cắt nhỏ nhất (MVP Slice) tập trung vào một kịch bản duy nhất nhưng có độ chuyển đổi cao:
+Đây là lát cắt nhỏ nhất nhưng đủ chứng minh được 3 giả thuyết sản phẩm:
 
-* **Một người dùng:** Người dùng có tài khoản MoMo, muốn lập một ngân sách chi tiêu/tiết kiệm rõ ràng nhưng lười nhập liệu thủ công.
-* **Một công việc (Job-to-be-done):** Người dùng yêu cầu AI lập kế hoạch tiết kiệm cụ thể (Ví dụ: *"Tiết kiệm 5 triệu trong 3 tháng"*), hệ thống tự động khởi tạo ngân sách dựa trên việc phân tích lịch sử giao dịch thực tế trong quá trình họ đồng ý đồng bộ (Opt-in).
-* **Một quyết định của AI:** AI phân tích dòng tiền quá khứ của người dùng để quyết định xem mục tiêu tiết kiệm này có khả thi không và tự động phân loại (Categorize) các danh mục chi tiêu/tiết kiệm hợp lý mà không cần người dùng nhập liệu tay.
-* **Một kết quả trả về:** Một bản kế hoạch chi tiêu/tiết kiệm trực quan có thể bấm **Xác nhận lưu cấu hình** thành công ngay lập tức (Không bị lỗi hệ thống), kèm theo cơ chế fallback lưu tạm bản nháp nếu kết nối cơ sở dữ liệu gặp trục trặc.
-
----
+- AI có ích khi biến nhu cầu mơ hồ thành cấu trúc tài chính cụ thể.
+- Số liệu tài chính nên đi qua tool xác định, không để LLM tự tưởng tượng.
+- Fallback là một phần của trải nghiệm, không phải tình huống ngoại lệ bị bỏ qua.
 
 ## 3. AI Product Canvas
 
-| Ô | Câu hỏi cần trả lời | Nội dung chi tiết cho Moni AI cải tiến |
-|---|---------------------|----------------------------------------|
-| **Value**<br>— Giá trị | Sản phẩm dành cho ai, họ đau ở đâu, và AI giải được điều gì mà cách làm hiện tại chưa giải tốt? | - **Đối tượng:** Người dùng ví MoMo cần quản lý tài chính cá nhân một cách nghiêm túc.<br>- **Nỗi đau:** Lười nhập liệu thủ công; Hệ thống liên tục báo lỗi khi thiết lập; AI tính toán sai số tiền thực tế.<br>- **AI giải quyết:** AI tự động đọc lịch sử giao dịch (sau khi được cấp quyền), phân loại danh mục tự động và tạo ngân sách thực tế chỉ qua một câu lệnh chat, loại bỏ 100% thao tác gõ tay. |
-| **Trust**<br>— Niềm tin | Khi AI trả lời sai, người dùng nhận ra bằng cách nào, và họ sửa lại, hoàn tác hay chuyển sang người thật ra sao? | - **Nhận biết:** Các con số hoặc danh mục chi tiêu hiển thị sai (Ví dụ: Đi siêu thị bị xếp vào "Giải trí").<br>- **Cơ chế sửa đổi:** Cung cấp nút `[Sửa danh mục]` hoặc `[Chỉnh số liệu]` trực tiếp ngay trên thẻ hội thoại (UI Component) thay vì bắt người dùng gõ câu lệnh chat để sửa lại. Cho phép hoàn tác (Undo) trong vòng 5 giây sau khi lưu ngân sách. |
-| **Feasibility**<br>— Tính khả thi | Có đáng để build không? Hãy cân nhắc chi phí mỗi lượt gọi, độ trễ, dữ liệu cần có, rủi ro lớn nhất, và ngưỡng mà nhóm sẵn sàng dừng lại. | - **Dữ liệu:** Cần schema lịch sử giao dịch MoMo 3 tháng gần nhất của người dùng (dạng Mock Data cho bản Demo).<br>- **Chi phí/Độ trễ:** Giảm thiểu bằng cách dùng mô hình nhỏ (Small Language Model - SLM) chuyên hóa cho rút trích thực thể (Entity Extraction), giữ độ trễ $< 1.5$ giây.<br>- **Rủi ro lớn nhất:** Người dùng từ chối cấp quyền đọc lịch sử giao dịch (Data Privacy).<br>- **Ngưỡng dừng (Stop-loss):** Nếu tỷ lệ AI phân loại danh mục chi tiêu sai $> 25\%$ sau khi test với 50 bộ dữ liệu nhiễu, nhóm sẽ dừng lại để tinh chỉnh lại Prompt và Rule-based code. |
-| **Tín hiệu học**<br>(Data Flywheel) | Khi người dùng chỉnh sửa kết quả, dữ liệu đó đi về đâu và giúp sản phẩm khá lên nhờ tín hiệu nào? | Khi người dùng chủ động sửa một danh mục (ví dụ: đổi từ "Giải trí" sang "Ăn uống"), hệ thống sẽ ghi nhận cặp dữ liệu `(Tên cửa hàng/Nội dung giao dịch, Danh mục đúng)` về Database cục bộ. Tín hiệu này được dùng để: cập nhật ngay lập tức quy tắc (Rule-based mapping) cho người dùng đó, và gom cụm làm tập dữ liệu phạt (Fine-tuning/Evaluation dataset) để huấn luyện AI chính xác hơn ở các phiên bản sau. |
+| Ô | Trả lời dựa trên prototype hiện tại |
+|---|---|
+| **Value - Giá trị** | Sản phẩm dành cho sinh viên và người mới đi làm muốn theo dõi chi tiêu và lập mục tiêu tiết kiệm ngắn hạn. AI giải được việc đọc ý định từ câu chat, gọi tool để lấy dữ liệu tài chính và diễn giải thành câu trả lời dễ hiểu. So với cách làm thủ công, user đỡ phải tự tính tay mức tiết kiệm mỗi tháng và đỡ phải tự tổng hợp giao dịch. |
+| **Trust - Niềm tin** | Agent đã có rule rõ ràng trong `codebase/src/agent/agent.py`: cấm hành động tài chính thật, bắt buộc dùng tool cho dữ liệu factual, và nếu lỗi thì nói thật rồi fallback sang Moni Note. User nhận ra AI sai khi số tiền không khớp, khi câu hỏi còn mơ hồ, hoặc khi tool lỗi. Khi đó user có thể hỏi lại, nhập lại mục tiêu, hoặc chuyển sang ghi chú tạm. |
+| **Feasibility - Tính khả thi** | Lát cắt này khả thi vì dữ liệu mock đã có trong `finance_data.json`, API `/agent` đã có trong `codebase/src/api/main.py`, frontend đã gọi tới backend thật trong `chatService.js`, và các phép tính quan trọng nằm trong Python tools. Rủi ro lớn nhất hiện tại là parse action JSON, chat flow chưa có UI xác nhận riêng, và chat frontend chưa biểu diễn rõ trace/tool call. |
+| **Tín hiệu học** | Tín hiệu học hiện tại đến từ lịch sử hội thoại lưu bằng `localStorage`, từ việc user đặt lại câu hỏi cho rõ hơn, và từ các Moni Note được tạo khi fallback. Nếu user liên tục sửa mục tiêu hoặc hỏi lại số tiền, đó là dấu hiệu prompt hoặc bước clarify của agent chưa tốt. |
 
----
+## 4. Tăng năng lực hay tự động hóa
 
-## 4. Tăng năng lực hay tự động hóa (Augmentation vs. Automation)
+Nhóm chọn **tăng năng lực (augmentation)**.
 
-Trong lát cắt sản phẩm này, nhóm quyết định chọn mô hình **Tăng năng lực (Augmentation)** kết hợp với **Tự động hóa có kiểm soát (Human-in-the-loop Automation)**.
+Trong prototype này, AI chỉ nên:
 
-* **Mức độ thực hiện:** AI đảm nhiệm việc **Tự động hóa** khâu thu thập thông tin, tính toán toán học và phân bổ ngân sách dự kiến (để giải quyết triệt để sự lười biếng của người dùng và lỗi tính toán sai của AI hiện tại).
-* **Quyền quyết định của con người:** Con người giữ quyền quyết định tối cao ở bước cuối cùng. AI **không tự ý khóa tiền** hay tự động tạo ngân sách trên ví nếu người dùng chưa bấm nút **[Xác nhận kích hoạt kế hoạch]**.
-* **Lý do lựa chọn:** Tài chính là một lĩnh vực nhạy cảm, có tác động lớn đến cuộc sống thực tế của người dùng. Nếu chọn *Tự động hóa hoàn toàn*, trường hợp AI phát sinh ảo giác (Hallucination) tính toán sai hoặc nhận diện sai dòng tiền sẽ dẫn đến việc phân bổ nhầm quỹ tiền, gây hậu quả nghiêm trọng và làm sụt giảm lòng tin người dùng ngay lập tức. Việc giữ con người làm bộ lọc cuối cùng giúp tối ưu hóa sự tiện lợi nhưng vẫn đảm bảo an toàn tuyệt đối.
+- hiểu câu hỏi của người dùng;
+- chọn đúng tool cần dùng;
+- tóm tắt và diễn giải kết quả tài chính;
+- đề xuất cách xử lý tạm thời khi hệ thống lỗi.
 
----
+Con người vẫn giữ quyền quyết định ở các bước:
 
-## 5. Bốn đường đi của trải nghiệm (The 4 Happy & Unhappy Paths)
+- có dùng kế hoạch tiết kiệm AI đề xuất hay không;
+- có sửa mục tiêu/thời hạn hay không;
+- có chấp nhận ghi tạm bằng Moni Note khi hệ thống lỗi hay không.
 
-| Đường đi | Câu hỏi | Thiết kế trải nghiệm chi tiết trên Prototype |
-|----------|---------|----------------------------------------------|
-| **Đường thuận** *(Happy Path)* | AI đúng và tự tin — người dùng thấy gì? | AI phân tích lịch sử ví mượt mà, đưa ra biểu đồ ngân sách hợp lý. Hiển thị một Thẻ tóm tắt kế hoạch (Plan Card) kèm nút bấm **[Kích hoạt ngay]**. Người dùng bấm 1 chạm là hoàn thành, hệ thống báo lưu database thành công. |
-| **Khi AI không chắc** *(Confused Path)* | AI lưỡng lự — có hỏi lại không? | Xảy ra khi người dùng có giao dịch chuyển tiền nội dung mơ hồ (Ví dụ: Chuyển khoản nội dung "đưa tiền"). AI sẽ không đoán mò mà đưa ra câu hỏi trắc nghiệm: *"Khoản 1.000.000đ ngày qua bạn chi cho 'Ăn uống' hay 'Trả nợ' vậy ạ?"* để người dùng chọn nhanh. |
-| **Khi AI sai** *(Unhealthy Path)* | Kết quả sai — người dùng gỡ ra thế nào? | Nếu AI tính toán nhầm số liệu hoặc phân loại sai danh mục chi tiêu, trên giao diện Plan Card luôn có nút biểu tượng cây bút **[Sửa nhanh]**. Người dùng bấm vào có thể tùy chỉnh lại con số bằng bàn phím số (Numeric Keyboard) hoặc chọn lại danh mục qua Dropdown menu. |
-| **Khi hệ thống lỗi** *(Fallback Path)* | Lỗi hệ thống backend/API sập — xử lý thế nào? | Thay vì hiện câu thông báo chặn đứng flow như Moni cũ, hệ thống sẽ lưu cấu hình kế hoạch vào bộ nhớ tạm cục bộ (Local Draft) trên máy người dùng, hiển thị thông báo nhẹ nhàng: *"Kế hoạch của bạn đã được lưu nháp tạm thời và sẽ tự động kích hoạt khi hệ thống ổn định trở lại nhé!"*. |
+Lý do chọn augmentation:
 
----
+- đây là bài toán fintech, sai số về tiền dễ làm mất niềm tin ngay;
+- repo đã thể hiện rõ chủ trương "không làm hành động tài chính thật";
+- dữ liệu hiện tại là mock data, phù hợp để hỗ trợ lập kế hoạch và phân tích hơn là tự động thao tác;
+- những bước AI làm tốt nhất trong repo này là hiểu ý định + gọi tool + diễn giải, không phải tự quyết định thay người dùng.
 
-## 6. Những kiểu lỗi đáng lo nhất (Critical Failure Modes)
+Vì vậy, vai trò đúng của Moni trong lát cắt này là **trợ lý tư vấn, tính toán, và fallback**, không phải một tác nhân tự động.
 
-Nhóm xác định hai kiểu lỗi nguy hiểm nhất cần phải phòng chống nghiêm ngặt trên bản mẫu thử (Prototype):
+## 5. Bốn đường đi của trải nghiệm
 
-### Lỗi 1: Ảo giác toán học (Computational Hallucination)
-* **Xuất hiện khi:** Mô hình ngôn ngữ lớn (LLM) cố gắng tự tính toán các con số chia nhỏ ngân sách một cách thuần túy dựa trên xác suất text (Ví dụ: tính sai số tiền cần tiết kiệm mỗi tháng hoặc cộng tổng chi tiêu bị lệch).
-* **Hậu quả:** Người dùng nhận thấy con số tiền nong bị sai lệch, dẫn đến mất hoàn toàn niềm tin vào ứng dụng tài chính.
-* **Cách Prototype xử lý:** Áp dụng cơ chế **Deterministic Code Integration**. AI chỉ chịu trách nhiệm bóc tách các thực thể từ câu chat (Ví dụ: `Số tiền tổng = 5.000.000`, `Thời gian = 3 tháng`). Sau đó, các thực thể này được chuyển qua cho một hàm code Python/JavaScript truyền thống để thực hiện phép toán $\text{Số tiền hàng tháng} = \frac{\text{Tổng tiền}}{\text{Thời gian}}$. AI tuyệt đối không tự tính toán số học.
+| Đường đi | Prototype hiện xử lý thế nào |
+|---|---|
+| **Đường thuận** | User nhập rõ: `Tôi muốn tiết kiệm 5 triệu trong 3 tháng`. Agent dùng `create_saving_plan`, có thể kết hợp `get_current_balance`, rồi trả về số tiền cần tiết kiệm mỗi tháng. Frontend hiện typing indicator, streaming text và lưu lịch sử hội thoại. |
+| **Khi AI không chắc** | Nếu user nhập mơ hồ như `Tôi muốn tiết kiệm mua điện thoại`, system prompt trong `agent.py` yêu cầu agent phải hỏi một câu làm rõ ngắn gọn thay vì tự đoán số tiền hay thời gian. |
+| **Khi AI sai hoặc tool lỗi** | Nếu file dữ liệu hỏng, tool lỗi, hoặc nguồn dữ liệu không sẵn sàng, `agent.py` sẽ dừng sớm và đề xuất Moni Note. Nếu request frontend lỗi, `ChatPage.jsx` sẽ hiện thông điệp lỗi để user biết rằng hệ thống chưa trả lời được. |
+| **Khi người dùng sửa** | Prototype hiện chưa có nút sửa riêng cho saving goal, nhưng user có thể nhập lại mục tiêu trong cùng cuộc chat, ví dụ đổi từ `3 tháng` sang `5 tháng`. Đó là correction path thực tế nhất mà giao diện hiện tại đang hỗ trợ. |
 
-### Lỗi 2: Nhầm lẫn nghiêm trọng danh mục giao dịch (Critical Misclassification)
-* **Xuất hiện khi:** Người dùng thực hiện các giao dịch chuyển tiền lớn cho mục đích y tế, trả nợ, hoặc đóng học phí nhưng nội dung chuyển khoản không rõ ràng, khiến AI xếp nhầm vào danh mục "Mua sắm" hoặc "Giải trí", từ đó đưa ra cảnh báo "Vung tay quá trán" sai thực tế.
-* **Hậu quả:** Gây ức chế mạnh cho người dùng, làm họ cảm thấy trợ lý AI "phiền phức" và "ngớ ngẩn".
-* **Cách Prototype xử lý:** Với tất cả các giao dịch chiếm tỷ trọng $>30\%$ thu nhập tháng mà AI có độ tự tin (Confidence Score) $< 85\%$, hệ thống bắt buộc phải đẩy vào luồng **Xin xác nhận**. AI sẽ hiển thị giao dịch đó đi kèm câu hỏi: *"Khoản chi này có phải dành cho Mua sắm không, hay là danh mục khác để Moni cập nhật lại giúp bạn?"*.
+## 6. Những kiểu lỗi đáng lo nhất
 
----
+### Lỗi 1: AI bịa hoặc tính sai số tiền
 
-## 7. Kế hoạch kiểm thử và bằng chứng demo (Testing Plan)
+- Thường xuất hiện khi agent không dùng tool hoặc diễn giải sai kết quả tool.
+- Người chịu thiệt là user, vì chỉ cần sai một con số là uy tín của trợ lý tài chính giảm rất nhanh.
+- Prototype xử lý bằng cách bắt buộc dữ liệu factual đi qua tool, còn phép tính tiết kiệm nằm trong `create_saving_plan` của `finance_tools.py`.
 
-Để bảo vệ sản phẩm thành công tại buổi Demo, nhóm chuẩn bị sẵn kịch bản thử nghiệm nghiêm ngặt với 2 loại đầu vào:
+### Lỗi 2: Dữ liệu hoặc tool hỏng làm gãy luồng
 
-### 7.1. Kịch bản Test 1: Đường thuận (Normal Input)
-* **Đầu vào:** Chat câu lệnh rõ ràng: *"Mình muốn lập hũ tiết kiệm mua laptop 15 triệu trong vòng 5 tháng"*. Dữ liệu chi tiêu giả lập (Mock Data) trong ví hoàn toàn sạch sẽ, chi tiêu đều đặn dưới mức thu nhập.
-* **Kỳ vọng đầu ra khi Demo:** AI nhận diện chính xác mục tiêu, không tự tính toán mà dùng code để chia ra mỗi tháng $3.000.000 \text{đ}$. UI hiển thị Plan Card đẹp đẽ, người dùng bấm nút xác nhận và hệ thống báo thành công (Không xuất hiện hộp thoại lỗi hệ thống).
+- Thường xuất hiện khi file JSON không đọc được, schema sai, hoặc tool runtime lỗi.
+- Người chịu thiệt là user đang ở giữa một tác vụ có cam kết cao như xem số dư, tổng hợp chi tiêu, hay lập kế hoạch tiết kiệm.
+- Prototype xử lý bằng fallback Moni Note. `agent.py` đã có nhánh riêng cho `FILE_NOT_FOUND`, `JSON_READ_ERROR`, và các lỗi dữ liệu để không giả vờ trả lời.
 
-### 7.2. Kịch bản Test 2: Gây nhiễu và Phục hồi (Edge Case / Stress Test)
-* **Đầu vào:** Chat câu lệnh nhập nhèm, cố tình đánh lừa: *"Tiết kiệm cho mình tầm vài triệu để đi chơi, chắc khoảng 3 hoặc 4 tháng gì đó nhé, à mà thôi tính cho mình 6 triệu trong 3 tháng đi"*.
-* **Kỳ vọng đầu ra khi Demo:** AI phải tự bỏ qua các thông tin gây nhiễu ở vế đầu (`vài triệu`, `3 hoặc 4 tháng`) và chốt đúng thực thể ở vế sau (`6 triệu trong 3 tháng`).
+### Lỗi 3: User yêu cầu hành động tài chính thật
 
-    
+- Thường xuất hiện khi user nhận AI là một tác nhân có thể chuyển tiền, thanh toán, hoặc thao tác trên dữ liệu thật.
+- Người chịu rủi ro là cả user lẫn sản phẩm, vì đây là vùng nhạy cảm và vượt quá phạm vi prototype.
+- Prototype xử lý bằng guardrail: từ chối lịch sự và đề xuất phương án an toàn hơn như ghi chú tạm bằng Moni Note hoặc lập kế hoạch mô phỏng.
+
+## 7. Kế hoạch kiểm thử và bằng chứng demo
+
+### Hai input demo chính
+
+**Input 1 - Đường thuận**
+
+```text
+Tôi muốn tiết kiệm 5 triệu trong 3 tháng.
+```
+
+Kỳ vọng:
+
+- backend gọi `create_saving_plan`;
+- bot trả về mức tiết kiệm mỗi tháng xấp xỉ 1.666.667đ;
+- giao diện chat hiện typing indicator, streaming và lưu lịch sử hội thoại.
+
+**Input 2 - Đầu vào khó / recovery**
+
+Cách 1:
+
+```text
+Tôi muốn tiết kiệm để mua điện thoại.
+```
+
+Kỳ vọng:
+
+- agent không tự đoán giá tiền hoặc thời hạn;
+- agent hỏi lại một câu ngắn để làm rõ.
+
+Cách 2:
+
+- tạo lỗi dữ liệu mock trong buổi test nội bộ;
+- hỏi:
+
+```text
+Số dư hiện tại của tôi là bao nhiêu?
+```
+
+Kỳ vọng:
+
+- agent không bịa số dư;
+- agent thông báo rằng hiện chưa đọc được dữ liệu;
+- agent đề xuất Moni Note làm phương án tạm.
+
+### Bằng chứng cần giữ để demo
+
+- ảnh chụp happy path trong giao diện chat;
+- ảnh chụp trường hợp agent hỏi lại khi input mơ hồ;
+- ảnh chụp trường hợp fallback sang Moni Note;
+- file dữ liệu mẫu `codebase/src/data/finance_data.json`;
+- code tool `codebase/src/tools/finance_tools.py`;
+- guardrail và fallback trong `codebase/src/agent/agent.py`;
+- logic gọi backend và hiện lỗi trong `codebase/frontend/src/services/chatService.js` và `codebase/frontend/src/pages/ChatPage/ChatPage.jsx`.
+
+### Đánh đổi nhóm chấp nhận
+
+- Ưu tiên tính đúng và recovery an toàn hơn là làm giao diện phức tạp.
+- Ưu tiên dùng dữ liệu mock để chứng minh logic sản phẩm trước khi nói đến tích hợp tài khoản thật.
+- Chấp nhận correction path hiện tại còn đơn giản qua chat text, vì mục tiêu của prototype là chứng minh AI + tool + fallback.
+
 ## 8. Phân công
 
 | Thành viên | Phụ trách |
 |---|---|
 | Trần Đức Tâm | Evidence |
 | Lê Quốc Bảo | SPEC |
-| Kim Hồng Giang | Frontend |
-| Lê Quang Miền | Backend|
+| Kim Hồng Giang | Backend |
+| Lê Quang Miền | Frontend |
 | TranNgocThuy | Data |
