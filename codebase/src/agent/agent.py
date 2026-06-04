@@ -78,6 +78,14 @@ Important safety and product rules:
 9. Keep the tone friendly, practical, and concise.
 10. Do not give high-risk financial advice. Only provide budgeting and tracking support from mock data.
 
+Saving plan workflow rules:
+1. create_saving_plan only creates a draft plan. It does NOT mean the plan has been saved.
+2. After create_saving_plan succeeds, explain the draft plan and ask the user to confirm by pressing the UI button.
+3. Do NOT say "created successfully" unless save_saving_plan has succeeded.
+4. save_saving_plan should only be used after explicit user confirmation.
+5. record_saving_deposit only records mock progress in JSON. It does not move real money.
+6. If a tool returns ui_action and data, preserve that information so the frontend can render the corresponding card or form.
+
 Available tools:
 {tool_descriptions}
 
@@ -93,6 +101,10 @@ Final Answer: your final answer to the user.
 
 If a tool result says success=false, do not pretend it succeeded.
 If the user asks for a real financial action, refuse politely and offer a safe alternative such as creating a Moni Note.
+
+When a saving plan draft is ready, your Final Answer should be concise and should not repeat too much raw JSON.
+Example:
+Final Answer: Mình đã chuẩn bị một kế hoạch tiết kiệm đề xuất. Bạn cần tiết kiệm khoảng 3.333.333 VND mỗi tháng để đạt mục tiêu 10.000.000 VND trong 3 tháng. Hãy kiểm tra thông tin trong thẻ kế hoạch và bấm "Tạo kế hoạch" nếu bạn đồng ý.
 """.strip()
 
     def run(self, user_input: str) -> Dict[str, Any]:
@@ -112,6 +124,8 @@ If the user asks for a real financial action, refuse politely and offer a safe a
         conversation = f"User question: {user_input}\n"
         trace: List[Dict[str, Any]] = []
         tool_calls: List[str] = []
+        last_ui_action = None
+        last_ui_data = None
 
         for step in range(1, self.max_steps + 1):
             llm_result = self.llm.generate(
@@ -136,6 +150,8 @@ If the user asks for a real financial action, refuse politely and offer a safe a
             if final_answer is not None:
                 return {
                     "answer": final_answer,
+                    "ui_action": last_ui_action,
+                    "data": last_ui_data,
                     "trace": trace,
                     "tool_calls": tool_calls,
                     "num_steps": step,
@@ -145,6 +161,19 @@ If the user asks for a real financial action, refuse politely and offer a safe a
             action = self._parse_action(llm_output)
 
             if action is None:
+                # If the model produced a natural language answer without Action,
+                # treat it as final instead of forcing another loop.
+                if llm_output.strip():
+                    return {
+                        "answer": llm_output.strip(),
+                        "ui_action": last_ui_action,
+                        "data": last_ui_data,
+                        "trace": trace,
+                        "tool_calls": tool_calls,
+                        "num_steps": step,
+                        "success": True,
+                    }
+
                 observation = {
                     "success": False,
                     "error": "PARSER_ERROR",
@@ -162,12 +191,18 @@ If the user asks for a real financial action, refuse politely and offer a safe a
             observation = self._execute_tool(tool_name, args)
             tool_calls.append(tool_name)
 
+            if isinstance(observation, dict) and observation.get("ui_action"):
+                last_ui_action = observation.get("ui_action")
+                last_ui_data = observation.get("data")
+
             # Code-level guardrail for unsafe or failed finance actions.
             guarded_answer = self._maybe_stop_after_observation(tool_name, observation)
             if guarded_answer is not None:
                 trace_item["observation"] = observation
                 return {
                     "answer": guarded_answer,
+                    "ui_action": last_ui_action,
+                    "data": last_ui_data,
                     "trace": trace,
                     "tool_calls": tool_calls,
                     "num_steps": step,
@@ -186,6 +221,8 @@ If the user asks for a real financial action, refuse politely and offer a safe a
 
         return {
             "answer": fallback_answer,
+            "ui_action": last_ui_action,
+            "data": last_ui_data,
             "trace": trace,
             "tool_calls": tool_calls,
             "num_steps": self.max_steps,
