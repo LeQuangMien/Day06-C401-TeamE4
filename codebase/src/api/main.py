@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-from src.agent.agent import ReActAgent
-from src.core.llm_provider import LLMProvider
-from src.tools.finance_tools import FINANCE_TOOLS
+from codebase.src.agent.agent import ReActAgent
+from codebase.src.core.llm_provider import LLMProvider
+from codebase.src.tools.finance_tools import FINANCE_TOOLS
 
 app = FastAPI(title="LLM and Agent API", version="1.0.0")
 
@@ -36,21 +36,21 @@ def get_llm_provider() -> LLMProvider:
     provider_name = os.getenv("DEFAULT_PROVIDER", "openai").strip().lower()
 
     if provider_name == "openai":
-        from src.core.openai_provider import OpenAIProvider
+        from codebase.src.core.openai_provider import OpenAIProvider
 
         api_key = os.getenv("OPENAI_API_KEY")
         model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
         return OpenAIProvider(model_name=model_name, api_key=api_key)
 
     if provider_name == "gemini":
-        from src.core.gemini_provider import GeminiProvider
+        from codebase.src.core.gemini_provider import GeminiProvider
 
         api_key = os.getenv("GEMINI_API_KEY")
         model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
         return GeminiProvider(model_name=model_name, api_key=api_key)
 
     if provider_name == "local":
-        from src.core.local_provider import LocalProvider
+        from codebase.src.core.local_provider import LocalProvider
 
         model_path = os.getenv("LOCAL_MODEL_PATH")
         if not model_path:
@@ -67,7 +67,7 @@ def get_llm_provider() -> LLMProvider:
 
 
 def get_react_agent(provider: LLMProvider = Depends(get_llm_provider)) -> ReActAgent:
-    return ReActAgent(provider, FINANCE_TOOLS)
+    return ReActAgent(provider, TOOLS)
 
 
 @app.post("/llm")
@@ -103,4 +103,10 @@ def generate_with_agent(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return answer
+    return {
+        "success": True,
+        "mode": "agent",
+        "model": agent.llm.model_name,
+        "answer": answer,
+        "max_steps": request.max_steps,
+    }
