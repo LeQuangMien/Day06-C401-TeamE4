@@ -79,7 +79,9 @@
       "type": "insight",
       "title": "Chi tiêu mua sắm đang chiếm nhiều nhất",
       "message": "Từ ngày 01/06 đến 04/06, bạn đã chi 250.000đ cho mua sắm, cao nhất trong các nhóm chi tiêu.",
-      "related_categories": ["shopping"]
+      "related_categories": [
+        "shopping"
+      ]
     },
     {
       "id": "N002",
@@ -87,7 +89,9 @@
       "type": "insight",
       "title": "Ăn uống là nhóm chi xuất hiện thường xuyên",
       "message": "Bạn có 3 giao dịch ăn uống với tổng 137.000đ trong giai đoạn này.",
-      "related_categories": ["food"]
+      "related_categories": [
+        "food"
+      ]
     },
     {
       "id": "N003",
@@ -95,7 +99,9 @@
       "type": "saving_tip",
       "title": "Gợi ý tiết kiệm nhỏ",
       "message": "Nếu giảm 1 ly cà phê/tuần khoảng 32.000đ, bạn có thể tiết kiệm thêm khoảng 128.000đ/tháng.",
-      "related_categories": ["food"]
+      "related_categories": [
+        "food"
+      ]
     }
   ],
   "saving_goals": [
@@ -104,12 +110,73 @@
       "name": "Tiết kiệm 5 triệu trong 3 tháng",
       "status": "active",
       "target_amount": 5000000,
-      "saved_amount": 0,
+      "saved_amount": 500000,
       "currency": "VND",
       "duration_months": 3,
       "start_date": "2026-06-01",
       "target_date": "2026-08-31",
-      "monthly_required_amount": 1666667
+      "monthly_required_amount": 1666667,
+      "deposits": [
+        {
+          "id": "D1780560647",
+          "amount": 500000,
+          "amount_text": "500.000 VND",
+          "date": "2026-06-04",
+          "note": "ko",
+          "created_at": "2026-06-04T15:10:47"
+        }
+      ],
+      "saved_amount_text": "500.000 VND",
+      "progress_percent": 0,
+      "remaining_amount": 0,
+      "remaining_amount_text": "0 VND"
+    },
+    {
+      "id": "G1780560606",
+      "goal_name": "saving_goal",
+      "goal_amount": 10000000,
+      "goal_amount_text": "10.000.000 VND",
+      "months": 3,
+      "monthly_required": 3333333,
+      "monthly_required_text": "3.333.333 VND",
+      "start_date": "2026-06-04",
+      "reminder_day": 5,
+      "saved_amount": 5000000,
+      "saved_amount_text": "5.000.000 VND",
+      "remaining_amount": 5000000,
+      "remaining_amount_text": "5.000.000 VND",
+      "progress_percent": 50.0,
+      "deposits": [
+        {
+          "id": "D1780561042",
+          "amount": 5000000,
+          "amount_text": "5.000.000 VND",
+          "date": "2026-06-04",
+          "note": "lương tháng 6",
+          "created_at": "2026-06-04T15:17:22"
+        }
+      ],
+      "status": "active",
+      "created_at": "2026-06-04T15:10:06"
+    },
+    {
+      "id": "G1780560999",
+      "goal_name": "aaaaaaaaa",
+      "goal_amount": 10000000,
+      "goal_amount_text": "10.000.000 VND",
+      "months": 3,
+      "monthly_required": 3333333,
+      "monthly_required_text": "3.333.333 VND",
+      "start_date": "2026-06-04",
+      "reminder_day": 5,
+      "saved_amount": 0,
+      "saved_amount_text": "0 VND",
+      "remaining_amount": 10000000,
+      "remaining_amount_text": "10.000.000 VND",
+      "progress_percent": 0,
+      "deposits": [],
+      "status": "active",
+      "created_at": "2026-06-04T15:16:39"
     }
   ],
   "summary": {

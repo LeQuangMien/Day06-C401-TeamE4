@@ -10,7 +10,7 @@ load_dotenv()
 
 from src.agent.agent import ReActAgent
 from src.core.llm_provider import LLMProvider
-from src.tools.finance_tools import FINANCE_TOOLS
+from src.tools.finance_tools import FINANCE_TOOLS, save_saving_plan
 
 app = FastAPI(title="LLM and Agent API", version="1.0.0")
 
@@ -104,3 +104,34 @@ def generate_with_agent(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return answer
+
+
+class SavePlanRequest(BaseModel):
+    goal_name: str = Field(..., min_length=1)
+    goal_amount: float = Field(..., gt=0)
+    months: int = Field(..., ge=1, le=120)
+    start_date: Optional[str] = None
+    reminder_day: int = Field(default=5, ge=1, le=31)
+
+
+@app.post("/save-plan")
+def direct_save_plan(request: SavePlanRequest) -> Dict[str, Any]:
+    """
+    Directly save a confirmed saving plan without going through the LLM agent.
+    This ensures parameters are always correctly typed and complete.
+    """
+    try:
+        result = save_saving_plan(
+            goal_name=request.goal_name,
+            goal_amount=request.goal_amount,
+            months=request.months,
+            start_date=request.start_date,
+            reminder_day=request.reminder_day,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Save failed"))
+
+    return result

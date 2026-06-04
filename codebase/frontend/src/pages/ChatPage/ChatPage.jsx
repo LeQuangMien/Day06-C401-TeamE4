@@ -3,7 +3,10 @@ import Header from '../../components/Header/Header';
 import ChatArea from '../../components/ChatArea/ChatArea';
 import ChatInput from '../../components/ChatInput/ChatInput';
 import ChatHistory from '../../components/ChatHistory/ChatHistory';
-import { sendMessage } from '../../services/chatService';
+import ConfirmPlanView from '../../components/ConfirmPlanView/ConfirmPlanView';
+import SuccessPlanView from '../../components/SuccessPlanView/SuccessPlanView';
+import DepositModal from '../../components/DepositModal/DepositModal';
+import { sendMessage, savePlan } from '../../services/chatService';
 import './ChatPage.css';
 
 // localStorage key
@@ -35,6 +38,16 @@ function ChatPage() {
   // Streaming state: which message is currently streaming and its displayed text
   const [streamingMsgId, setStreamingMsgId] = useState(null);
   const [streamingText, setStreamingText] = useState('');
+
+  // Confirmation plan view state
+  const [confirmPlanData, setConfirmPlanData] = useState(null);
+  const [confirmPlanMessageId, setConfirmPlanMessageId] = useState(null);
+
+  // Success plan view state
+  const [successPlanData, setSuccessPlanData] = useState(null);
+
+  // Deposit modal state: { plan, messageId }
+  const [depositModalData, setDepositModalData] = useState(null);
 
   // Ref for streaming interval to clean up on unmount
   const streamingRef = useRef(null);
@@ -129,6 +142,8 @@ function ChatPage() {
           id: `msg-${Date.now()}-bot`,
           type: 'bot',
           text: response.text,
+          uiAction: response.uiAction,
+          uiData: response.uiData,
           timestamp: new Date(),
         };
 
@@ -184,19 +199,174 @@ function ChatPage() {
     setIsHistoryOpen(false);
   }, []);
 
+  const handleConfirmPlanSubmit = useCallback((updatedData) => {
+    const { plan } = updatedData;
+    
+    // Close confirmation view
+    setConfirmPlanData(null);
+
+    // Show typing indicator
+    setIsBotTyping(true);
+
+    // Call the direct save-plan API (bypasses LLM agent entirely)
+    savePlan(plan)
+      .then((result) => {
+        setIsBotTyping(false);
+
+        // Build the saved plan object from the backend response
+        const savedPlan = result.data?.plan || result.plan || plan;
+
+        // Update the original draft card message in place
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeConvId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === confirmPlanMessageId
+                      ? {
+                          ...m,
+                          text: 'Kế hoạch tiết kiệm đã được lưu thành công!',
+                          uiAction: result.ui_action || 'SHOW_SAVING_PLAN_SUCCESS',
+                          uiData: result.data || { plan: savedPlan },
+                          timestamp: new Date(),
+                        }
+                      : m
+                  ),
+                }
+              : c
+          )
+        );
+
+        // Show full screen SuccessPlanView
+        setSuccessPlanData(savedPlan);
+        setConfirmPlanMessageId(null);
+      })
+      .catch((error) => {
+        console.error('Save plan error:', error);
+        setIsBotTyping(false);
+        alert('Không thể lưu kế hoạch: ' + error.message);
+      });
+  }, [activeConvId, confirmPlanMessageId]);
+
+  const handleSuccessViewPlans = useCallback(() => {
+    setSuccessPlanData(null);
+    handleSendMessage('Xem danh sách kế hoạch tiết kiệm của tôi');
+  }, [handleSendMessage]);
+
+  const handleSuccessBackToChat = useCallback(() => {
+    setSuccessPlanData(null);
+  }, []);
+
+  const handleActionClick = useCallback((action, data, messageId) => {
+    let text = '';
+
+    if (action === 'CONFIRM_SAVING_PLAN') {
+      // Transition to ConfirmPlanView form screen
+      setConfirmPlanData(data.plan);
+      setConfirmPlanMessageId(messageId);
+      return;
+    } else if (action === 'VIEW_SAVING_PLANS') {
+      text = 'Xem danh sách kế hoạch tiết kiệm của tôi';
+    } else if (action === 'VIEW_GOAL_DETAIL') {
+      text = `Xem chi tiết kế hoạch tiết kiệm có mã ${data.goalId}`;
+    } else if (action === 'RECORD_DEPOSIT') {
+      // Open DepositModal instead of window.prompt
+      setDepositModalData({ plan: data.plan, messageId });
+      return;
+    } else if (action === 'DISMISS') {
+      // Dismiss saving plan success card and return to normal chat text
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConvId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === messageId
+                    ? { ...m, uiAction: null, uiData: null }
+                    : m
+                ),
+              }
+            : c
+        )
+      );
+      return;
+    }
+
+    if (!text) return;
+
+    // Show typing indicator
+    setIsBotTyping(true);
+
+    // Call chat service in the background without appending a new user bubble
+    sendMessage(text)
+      .then((response) => {
+        setIsBotTyping(false);
+
+        // Update the card message in place
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeConvId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === messageId
+                      ? {
+                          ...m,
+                          text: response.text,
+                          uiAction: response.uiAction,
+                          uiData: response.uiData,
+                          timestamp: new Date(),
+                        }
+                      : m
+                  ),
+                }
+              : c
+          )
+        );
+
+        // Stream the bot's new text on the updated card
+        setTimeout(() => {
+          startStreaming(messageId, response.text);
+        }, 100);
+      })
+      .catch((error) => {
+        console.error('Action card interaction error:', error);
+        setIsBotTyping(false);
+        alert('Moni gặp lỗi khi thực hiện hành động này. Thử lại nhé! 😅');
+      });
+  }, [activeConvId, startStreaming]);
+
   return (
     <div className="chat-page" id="chat-page">
-      <Header />
-      <ChatArea
-        messages={messages}
-        isBotTyping={isBotTyping}
-        streamingMsgId={streamingMsgId}
-        streamingText={streamingText}
-      />
-      <ChatInput
-        onSendMessage={handleSendMessage}
-        onOpenHistory={handleOpenHistory}
-      />
+      {successPlanData ? (
+        <SuccessPlanView
+          plan={successPlanData}
+          onViewPlans={handleSuccessViewPlans}
+          onBackToChat={handleSuccessBackToChat}
+        />
+      ) : confirmPlanData ? (
+        <ConfirmPlanView
+          plan={confirmPlanData}
+          onConfirm={handleConfirmPlanSubmit}
+          onBack={() => setConfirmPlanData(null)}
+        />
+      ) : (
+        <>
+          <Header />
+          <ChatArea
+            messages={messages}
+            isBotTyping={isBotTyping}
+            streamingMsgId={streamingMsgId}
+            streamingText={streamingText}
+            onActionClick={handleActionClick}
+          />
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            onOpenHistory={handleOpenHistory}
+          />
+        </>
+      )}
       <ChatHistory
         isOpen={isHistoryOpen}
         onClose={handleCloseHistory}
@@ -204,6 +374,45 @@ function ChatPage() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
       />
+      {depositModalData && (
+        <DepositModal
+          planName={depositModalData.plan.goal_name}
+          onCancel={() => setDepositModalData(null)}
+          onConfirm={(amount, note) => {
+            const { plan, messageId } = depositModalData;
+            setDepositModalData(null);
+            setIsBotTyping(true);
+
+            let text = `Ghi nhận tiết kiệm ${amount} VND cho kế hoạch tiết kiệm có mã ${plan.id}`;
+            if (note) text += ` với ghi chú: "${note}"`;
+
+            sendMessage(text)
+              .then((response) => {
+                setIsBotTyping(false);
+                setConversations((prev) =>
+                  prev.map((c) =>
+                    c.id === activeConvId
+                      ? {
+                          ...c,
+                          messages: c.messages.map((m) =>
+                            m.id === messageId
+                              ? { ...m, text: response.text, uiAction: response.uiAction, uiData: response.uiData, timestamp: new Date() }
+                              : m
+                          ),
+                        }
+                      : c
+                  )
+                );
+                setTimeout(() => startStreaming(messageId, response.text), 100);
+              })
+              .catch((error) => {
+                console.error('Deposit error:', error);
+                setIsBotTyping(false);
+                alert('Moni gặp lỗi khi ghi nhận tiết kiệm. Thử lại nhé!');
+              });
+          }}
+        />
+      )}
     </div>
   );
 }

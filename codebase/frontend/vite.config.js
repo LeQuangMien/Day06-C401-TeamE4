@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       '/agent': 'http://127.0.0.1:8000',
       '/llm': 'http://127.0.0.1:8000',
+      '/save-plan': 'http://127.0.0.1:8000',
     },
   },
 })

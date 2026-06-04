@@ -3,6 +3,7 @@ import BotAvatar from '../BotAvatar/BotAvatar';
 import MessageBubble from '../MessageBubble/MessageBubble';
 import FeedbackBar from '../FeedbackBar/FeedbackBar';
 import TypingIndicator from '../TypingIndicator/TypingIndicator';
+import ActionCard from '../ActionCard/ActionCard';
 import './ChatArea.css';
 
 function ChatArea({
@@ -10,6 +11,7 @@ function ChatArea({
   isBotTyping = false,
   streamingMsgId = null,
   streamingText = '',
+  onActionClick = () => {},
 }) {
   const messagesEndRef = useRef(null);
   const chatAreaRef = useRef(null);
@@ -77,6 +79,13 @@ function ChatArea({
                 isStreaming={streamingMsgId === msg.id}
                 displayedText={streamingMsgId === msg.id ? streamingText : ''}
               />
+              {msg.type === 'bot' && msg.uiAction && streamingMsgId !== msg.id && (
+                <ActionCard
+                  uiAction={msg.uiAction}
+                  uiData={msg.uiData}
+                  onActionClick={(action, data) => onActionClick(action, data, msg.id)}
+                />
+              )}
               {msg.type === 'bot' && streamingMsgId !== msg.id && (
                 <FeedbackBar messageId={msg.id} />
               )}
