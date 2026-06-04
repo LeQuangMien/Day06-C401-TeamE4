@@ -1,10 +1,15 @@
 import './MessageBubble.css';
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, isStreaming = false, displayedText = '' }) {
   const isUser = message.type === 'user';
+
+  // Determine which text to render for bot messages
+  const botText = isStreaming ? displayedText : message.text;
 
   // Parse bot text to render bold and lists
   const renderBotText = (text) => {
+    if (!text) return null;
+
     const lines = text.split('\n');
     const elements = [];
     let listItems = [];
@@ -91,7 +96,9 @@ function MessageBubble({ message }) {
         {isUser ? (
           <p className="message__text">{message.text}</p>
         ) : (
-          <div className="message__content">{renderBotText(message.text)}</div>
+          <div className="message__content">
+            {renderBotText(botText)}
+          </div>
         )}
       </div>
     </div>

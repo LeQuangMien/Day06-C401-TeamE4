@@ -2,18 +2,24 @@ import { useEffect, useRef } from 'react';
 import BotAvatar from '../BotAvatar/BotAvatar';
 import MessageBubble from '../MessageBubble/MessageBubble';
 import FeedbackBar from '../FeedbackBar/FeedbackBar';
+import TypingIndicator from '../TypingIndicator/TypingIndicator';
 import './ChatArea.css';
 
-function ChatArea({ messages = [] }) {
+function ChatArea({
+  messages = [],
+  isBotTyping = false,
+  streamingMsgId = null,
+  streamingText = '',
+}) {
   const messagesEndRef = useRef(null);
   const chatAreaRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or typing/streaming state changes
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isBotTyping, streamingText]);
 
   const hasMessages = messages.length > 0;
 
@@ -46,7 +52,7 @@ function ChatArea({ messages = [] }) {
       <div className="chat-area__bg-decor chat-area__bg-decor--right"></div>
       <div className="chat-area__bg-decor chat-area__bg-decor--left"></div>
 
-      {!hasMessages ? (
+      {!hasMessages && !isBotTyping ? (
         /* Welcome content */
         <div className="chat-area__welcome">
           <BotAvatar />
@@ -66,12 +72,24 @@ function ChatArea({ messages = [] }) {
                   {formatTimestamp(msg.timestamp)}
                 </div>
               )}
-              <MessageBubble message={msg} />
-              {msg.type === 'bot' && (
+              <MessageBubble
+                message={msg}
+                isStreaming={streamingMsgId === msg.id}
+                displayedText={streamingMsgId === msg.id ? streamingText : ''}
+              />
+              {msg.type === 'bot' && streamingMsgId !== msg.id && (
                 <FeedbackBar messageId={msg.id} />
               )}
             </div>
           ))}
+
+          {/* Typing indicator */}
+          {isBotTyping && (
+            <div className="chat-area__message-group">
+              <TypingIndicator />
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       )}

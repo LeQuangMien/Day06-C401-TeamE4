@@ -1,67 +1,90 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Header from '../../components/Header/Header';
 import ChatArea from '../../components/ChatArea/ChatArea';
 import ChatInput from '../../components/ChatInput/ChatInput';
 import ChatHistory from '../../components/ChatHistory/ChatHistory';
+import { sendMessage } from '../../services/chatService';
 import './ChatPage.css';
 
-// Mock bot responses for demo
-const MOCK_RESPONSES = [
-  `Đây là phân tích chi tiêu của bạn trong năm 2026:
+// localStorage key
+const STORAGE_KEY = 'moni-conversations';
 
-· Tổng số tiền đã chi: **73.000đ**
-· Số giao dịch: **1**
-· Trung bình chi tiêu mỗi ngày: **200đ**
+// Streaming speed (ms per character)
+const STREAM_SPEED = 20;
 
-Nếu bạn muốn xem chi tiết theo từng nhóm chi tiêu hoặc so sánh với năm trước, hãy cho Moni biết nhé!`,
-
-  `Ngân sách tổng của bạn đã được thiết lập là **1.000.000đ** cho tháng này.
-
-Hiện tại bạn đã chi tiêu **140.000đ**, còn lại **860.000đ** để sử dụng trong tháng.
-
-Bạn muốn Moni giúp gì tiếp theo? Quản lý chi tiêu hay nhắc nhở khi gần hết ngân sách không?`,
-
-  `Ớ kìa! Moni là trợ lý chi tiêu chứ không phải AI để bạn test độ hack nha 🤪. Gài Moni kiểu này là không chơi đẹp rồi đó!`,
-
-  `Để lập ngân sách hiệu quả, bạn nên:
-
-1. Xác định tổng số tiền muốn chi tiêu trong tháng **(ngân sách tổng)**.
-2. Theo dõi chi tiêu thực tế và so sánh với ngân sách đã đặt ra.
-3. Xem báo cáo chi tiêu để biết mình đã tiêu bao nhiêu, còn lại bao nhiêu.
-
-Hiện tại, bạn đã sử dụng **140.000đ** trên tổng ngân sách **1.000.000đ**, còn lại **860.000đ** để chi tiêu.`,
-
-  `Moni sẽ giúp bạn theo dõi chi tiêu hàng ngày! Dưới đây là tóm tắt:
-
-· Chi tiêu hôm nay: **0đ**
-· Chi tiêu tuần này: **35.000đ**
-· Chi tiêu tháng này: **140.000đ**
-
-Bạn đang chi tiêu rất hợp lý, tiếp tục phát huy nhé! 💪`,
-
-  `Moni nhận thấy bạn chi tiêu nhiều nhất cho nhóm **Ăn uống** (chiếm **65%** tổng chi tiêu).
-
-Các nhóm chi tiêu khác:
-· Đi lại: **20%**
-· Giải trí: **10%**
-· Khác: **5%**
-
-Bạn có muốn đặt giới hạn cho từng nhóm chi tiêu không?`,
-];
-
-let responseIndex = 0;
+// Typing indicator delay before streaming starts (ms)
+const TYPING_DELAY = 800;
 
 function ChatPage() {
   // All conversations: array of { id, messages, createdAt }
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Current active conversation id
   const [activeConvId, setActiveConvId] = useState(null);
+
   // History panel open/close
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Bot is "thinking" (showing typing indicator)
+  const [isBotTyping, setIsBotTyping] = useState(false);
+
+  // Streaming state: which message is currently streaming and its displayed text
+  const [streamingMsgId, setStreamingMsgId] = useState(null);
+  const [streamingText, setStreamingText] = useState('');
+
+  // Ref for streaming interval to clean up on unmount
+  const streamingRef = useRef(null);
 
   // Get current conversation's messages
   const activeConv = conversations.find((c) => c.id === activeConvId);
   const messages = activeConv ? activeConv.messages : [];
+
+  // Persist conversations to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    } catch {
+      // localStorage full or unavailable - silently ignore
+    }
+  }, [conversations]);
+
+  // Cleanup streaming on unmount
+  useEffect(() => {
+    return () => {
+      if (streamingRef.current) {
+        clearInterval(streamingRef.current);
+      }
+    };
+  }, []);
+
+  // Start streaming effect for a bot message
+  const startStreaming = useCallback((msgId, fullText) => {
+    setStreamingMsgId(msgId);
+    setStreamingText('');
+
+    let charIndex = 0;
+
+    streamingRef.current = setInterval(() => {
+      charIndex++;
+      const partial = fullText.slice(0, charIndex);
+      setStreamingText(partial);
+
+      if (charIndex >= fullText.length) {
+        // Streaming complete
+        clearInterval(streamingRef.current);
+        streamingRef.current = null;
+        setStreamingMsgId(null);
+        setStreamingText('');
+      }
+    }, STREAM_SPEED);
+  }, []);
 
   const handleSendMessage = useCallback((text) => {
     const now = new Date();
@@ -72,6 +95,9 @@ function ChatPage() {
       timestamp: now,
     };
 
+    // Determine which conversation to add to
+    let targetConvId = activeConvId;
+
     setConversations((prev) => {
       // If no active conversation, create one
       if (!prev.find((c) => c.id === activeConvId)) {
@@ -80,6 +106,7 @@ function ChatPage() {
           messages: [userMsg],
           createdAt: now,
         };
+        targetConvId = newConv.id;
         setActiveConvId(newConv.id);
         return [...prev, newConv];
       }
@@ -92,25 +119,58 @@ function ChatPage() {
       );
     });
 
-    // Simulate bot reply
-    setTimeout(() => {
-      const botMsg = {
-        id: `msg-${Date.now()}-bot`,
-        type: 'bot',
-        text: MOCK_RESPONSES[responseIndex % MOCK_RESPONSES.length],
-        timestamp: new Date(),
-      };
-      responseIndex++;
+    // Show typing indicator
+    setIsBotTyping(true);
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConvId || (!activeConvId && c === prev[prev.length - 1])
-            ? { ...c, messages: [...c.messages, botMsg] }
-            : c
-        )
-      );
-    }, 600);
-  }, [activeConvId]);
+    // Call chat service
+    sendMessage(text)
+      .then((response) => {
+        // Hide typing indicator
+        setIsBotTyping(false);
+
+        // Create bot message
+        const botMsg = {
+          id: `msg-${Date.now()}-bot`,
+          type: 'bot',
+          text: response.text,
+          timestamp: new Date(),
+        };
+
+        // Add bot message to conversation
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === targetConvId
+              ? { ...c, messages: [...c.messages, botMsg] }
+              : c
+          )
+        );
+
+        // Start streaming effect after a short delay
+        setTimeout(() => {
+          startStreaming(botMsg.id, response.text);
+        }, 100);
+      })
+      .catch((error) => {
+        console.error('Chat service error:', error);
+        setIsBotTyping(false);
+
+        // Add error message
+        const errorMsg = {
+          id: `msg-${Date.now()}-err`,
+          type: 'bot',
+          text: 'Xin lỗi, Moni gặp lỗi khi xử lý. Bạn thử lại nhé! 😅',
+          timestamp: new Date(),
+        };
+
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === targetConvId
+              ? { ...c, messages: [...c.messages, errorMsg] }
+              : c
+          )
+        );
+      });
+  }, [activeConvId, startStreaming]);
 
   const handleOpenHistory = useCallback(() => {
     setIsHistoryOpen(true);
@@ -133,7 +193,12 @@ function ChatPage() {
   return (
     <div className="chat-page" id="chat-page">
       <Header />
-      <ChatArea messages={messages} />
+      <ChatArea
+        messages={messages}
+        isBotTyping={isBotTyping}
+        streamingMsgId={streamingMsgId}
+        streamingText={streamingText}
+      />
       <ChatInput
         onSendMessage={handleSendMessage}
         onOpenHistory={handleOpenHistory}
