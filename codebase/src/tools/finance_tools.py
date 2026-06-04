@@ -218,6 +218,7 @@ def get_current_balance(data_path: str = DEFAULT_DATA_PATH) -> Dict[str, Any]:
 
     return {
         "success": True,
+        "ui_action": None,
         "current_balance": int(balance_number),
         "current_balance_text": _format_vnd(balance_number) if currency == "VND" else f"{balance_number} {currency}",
         "currency": currency,
@@ -264,6 +265,7 @@ def list_transactions(
 
     return {
         "success": True,
+        "ui_action": None,
         "count": len(transactions),
         "returned": len(selected),
         "transactions": selected,
@@ -384,6 +386,7 @@ def get_category_breakdown(
 
     return {
         "success": True,
+        "ui_action": None,
         "total_expense": int(total_expense),
         "total_expense_text": _format_vnd(total_expense),
         "categories": categories,
@@ -584,6 +587,7 @@ def create_moni_note(
 
     return {
         "success": True,
+        "ui_action": None,
         "note": note,
         "message": "Moni Note created successfully. This is only a temporary draft note.",
     }
