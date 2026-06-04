@@ -16,7 +16,33 @@ Những ảnh trong `spec/img/` cho thấy một mô hình vấn đề nhất qu
 - người dùng muốn hỏi về chi tiêu, kế hoạch tiết kiệm, và tình trạng tài chính của mình;
 - trải nghiệm bị gãy khi hệ thống không chuyển được từ hỏi đáp sang hành động có cấu trúc.
 
-### 1.2. Bằng chứng từ code và dữ liệu mock
+### 1.2. Nguồn kiểm chứng bên ngoài (App Store Reviews)
+
+Các vấn đề phát hiện qua trải nghiệm trực tiếp không phải lỗi cục bộ, mà là nỗi đau kinh niên được người dùng liên tục phản ánh trên cửa hàng ứng dụng App Store (MoMo nhận tổng điểm 4.4 sao nhưng cấu phần trợ lý tài chính nhận rất nhiều đánh giá 1-2 sao).
+
+| Feedback 1 | Feedback 2 | Feedback 3 | Feedback 4 |
+|---|---|---|---|
+| <img src="img/feedback1.png" width="250" /> | <img src="img/feedback2.png" width="250" /> | <img src="img/feedback3.png" width="250"/> | <img src="img/feedback4.png" width="250"/> |
+
+#### Nỗi đau 1: Lỗi hệ thống khi lập kế hoạch là lỗi diện rộng và kéo dài
+* **Bằng chứng từ người dùng `lqmien5` & `juouuu` (`feedback1.png`, `feedback2.png`):**
+  > *"Chả hiểu tính năng lập kế hoạch kiểu gì cứ lỗi hệ thống, thử lại vài lần rồi vẫn thế là sao app lớn mà kiểu gì vậy tr thất vọng"*
+  > *"Trợ lý quá tệ hỏi lập kế hoạch tiết kiệm đã lập tức báo lỗi hệ thống thử lại vẫn thế"*
+* **Phân tích:** Các đánh giá này xuất hiện từ 1 năm trước (so với thời điểm hiện tại của review) và luồng lỗi này vẫn lặp lại y hệt trong trải nghiệm trực tiếp của đội ngũ ở `anh3.jpg`. Điều này chứng tỏ đây là một lỗi hệ thống nghiêm trọng thuộc về kiến trúc hoặc hạ tầng kết nối dữ liệu chưa được xử lý triệt để, gây ức chế kéo dài cho tập người dùng muốn quản lý tài chính nghiêm túc.
+
+#### Nỗi đau 2: Không đồng bộ lịch sử giao dịch thực tế trên ứng dụng MoMo
+* **Bằng chứng từ người dùng `Phi817` (`feedback3.png`):**
+  > *"Tại sao rất nhiều giao dịch tôi thực hiện ở app mà đến lúc hỏi trợ lý nó không ghi nhận"*
+* **Phân tích:** Mô hình tâm trí (Mental Model) của người dùng mặc định rằng: *"Tôi chi tiêu qua ví MoMo thì Trợ lý của MoMo phải tự biết"*. Việc hệ thống tách rời hai phần này khiến hành vi quản lý chi tiêu bị nhân đôi thao tác: Người dùng vừa phải thực hiện quét mã/thanh toán, vừa phải vào chat với AI để khai báo. 
+
+#### Nỗi đau 3: AI tính toán sai lệch số liệu tài chính (Hallucination/Logic Error)
+* **Bằng chứng từ người dùng `quynhtr24` (`feedback4.png`):**
+  > *"Sao con trợ thủ tài chính thì thoảng nó cứ tính sai tiền vậy khó hiểu thật sự đấy toàn phải tự sửa là sao"*
+* **Phân tích:** Đây là lỗi nghiêm trọng liên quan đến tính chính xác của dữ liệu (Data Integrity). Đối với sản phẩm Fintech, việc AI phát sinh ảo giác (Hallucination) hoặc tính toán sai lệch con số thu chi sẽ phá hủy hoàn toàn uy tín của sản phẩm, khiến người dùng quay lại với phương pháp thủ công hoặc chuyển sang app đối thủ.
+
+---
+
+### 1.3. Bằng chứng từ code và dữ liệu mock
 
 Những file sau cho thấy prototype hiện tại đã chốt hướng sản phẩm khá rõ:
 
@@ -31,7 +57,7 @@ Những file sau cho thấy prototype hiện tại đã chốt hướng sản ph
 - `codebase/frontend/src/pages/ChatPage/ChatPage.jsx`
   Giao diện hiện có lịch sử hội thoại, typing indicator, streaming message và thông báo lỗi khi request thất bại.
 
-### 1.3. Tổng hợp nỗi đau và quyết định sản phẩm
+### 1.4. Tổng hợp nỗi đau và quyết định sản phẩm
 
 Từ các file trong repo, có thể kết luận 3 vấn đề cốt lõi mà prototype đang giải:
 
